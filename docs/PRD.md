@@ -143,6 +143,11 @@ Two entities: **Topic** and **View**. Both belong to one User (Josh).
 - Open question: should Topics eventually get their own Confidence/Evidence
   fields if a Topic-level view starts to feel needed? Deferred — not requested,
   don't build speculatively.
+- Watch-item (flagged in Session 1.1 review pass): Topic's Framing Note field
+  isn't read or displayed anywhere in the current User Flows or Success
+  Criteria — it's write-only right now. Not removing it speculatively, but if
+  it's still unused by Session 1.5, cut it rather than carry dead weight
+  forward.
 
 ## 8. Success Criteria
 - [ ] Josh can create a Topic
@@ -153,6 +158,8 @@ Two entities: **Topic** and **View**. Both belong to one User (Josh).
 - [ ] Josh can see, when creating a new View, existing Views across Topics to
       check for overlap
 - [ ] Josh can view a Topic and see all Views linked to it
+- [ ] A View cannot be saved with zero linked Topics (enforced at application
+      layer — see tech-design.md §8 for the known DB-level enforcement gap)
 - [ ] The 3 real Views below are entered as actual data under real Topics, not
       placeholder data
 - [ ] App deployed and reachable (Session 1.2 delivers auth + deploy; this
