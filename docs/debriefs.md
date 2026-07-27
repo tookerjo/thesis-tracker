@@ -62,3 +62,49 @@ On version control as safety net: "I have the confidence that, with the
 agent, I'm able to go back and edit any file." This confidence is earned, not
 assumed — the commit history (e0f7b18, 24f8ea3, 9249795, bb48c45) is the
 actual proof edits are safe and traceable.
+
+## Session 1.2
+Date: 2026-07-27
+
+- What shipped: Next.js scaffold, live Supabase project, Google OAuth
+  wired end-to-end (client, server, middleware, login page, callback
+  route), deployed to Vercel, middleware fixed to default-deny per
+  CLAUDE.md rule 8.
+- What broke / what was confusing: The first real test of the deployed
+  Vercel app failed — Supabase's Site URL configuration still pointed at
+  localhost, never updated for production, so the OAuth flow silently
+  errored out instead of landing on /dashboard. Diagnosed and fixed same
+  session. Also lost some time to two stray dev server processes running
+  on different ports simultaneously, left over from earlier in the day,
+  which caused a confusing intermediate error before the real bug was
+  found.
+- What Claude Code did brilliantly: Kept the session on track and scope
+  narrow, with a couple of divergences along the way that got flagged
+  rather than silently absorbed. Strong, fast diagnostic work on the
+  production OAuth bug — went straight to the actual error rather than
+  guessing, quick fix once identified.
+- What Claude Code did badly: Still struggling to explain code in
+  plain-language terms at certain points — not fully translating what a
+  given piece of code does or why, which leaves me looking for the right
+  triggers to know what I'm actually approving. I can't yet fully read
+  every line myself, but staying alert to that gap is what's keeping me
+  anchored to fundamentals rather than rubber-stamping.
+- One oversight catch I'm proud of: Consistently monitoring to make sure
+  the agent wasn't getting ahead of scope — staying disciplined about
+  what's actually in today's stated boundaries versus what "flows
+  naturally" from it.
+- One oversight I missed: Not really a miss so much as an efficiency
+  question — noticing that some approvals could probably be automated or
+  batched rather than reviewed one at a time, without losing the
+  oversight that actually matters.
+- Did the OAuth flow concept click, or is it still hand-wavy: Real
+  progress. Having done Google OAuth twice now (comments feature, then
+  this), it's starting to feel concrete rather than abstract. Curiosity
+  is turning toward what else, and where else, this pattern extends to.
+- ADR-002 heading into 1.3: No new signal from today — auth work didn't
+  touch the Topic/View schema at all. Will form a real view once 1.3's
+  RLS work is actually underway.
+- Next session: Session 1.3 — Data model + tenancy, per the syllabus.
+- Terminal/tool-basics note: Ctrl+C is a held key combination, not
+  literal characters to type — typing the letters sends them as input to
+  whatever's running instead of stopping it.
