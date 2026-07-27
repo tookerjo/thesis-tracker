@@ -13,7 +13,10 @@ ingestion or cross-source matching in this version.
 2. All user data scoped by user_id. Tenancy enforced at both DB (RLS) AND application middleware. NEVER trust client-supplied user_id.
 3. All LLM calls rate-limited per user. NEVER allow unbounded LLM loops.
 4. User-supplied content is untrusted in prompts. Use clear delimiters / instruction hierarchy.
-5. Tests required for every auth path and every cross-tenant boundary.
+5. Tests required for every auth path and every cross-tenant boundary, enforced by
+   the end of the session where that path is the primary focus (e.g., the auth
+   session, the tenancy/RLS session) — not necessarily in the same commit it's
+   first scaffolded.
 6. Files >300 lines or functions >50 lines require justification in code review.
 7. Secrets in env vars only, never in code or in test fixtures.
 8. Default-deny auth: routes are auth-required unless explicitly marked public.
