@@ -1,11 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PATHS = ["/dashboard"];
+const PUBLIC_PATHS = ["/", "/login", "/auth/callback"];
 
-function isProtectedPath(pathname: string): boolean {
-  return PROTECTED_PATHS.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PATHS.some(
+    (path) =>
+      pathname === path || (path !== "/" && pathname.startsWith(`${path}/`)),
   );
 }
 
@@ -39,7 +40,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (isProtectedPath(request.nextUrl.pathname) && !user) {
+  if (!isPublicPath(request.nextUrl.pathname) && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", request.nextUrl.pathname);
