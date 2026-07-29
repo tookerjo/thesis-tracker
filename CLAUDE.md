@@ -1,11 +1,13 @@
 # Project: Thesis Tracker
 
 ## Purpose
-A single-user web app for tracking Parchmount investment theses: title, hypothesis,
-evidence for/against, related companies, confidence, time horizon, tags, and
-relationships between theses. Replaces the current scattered mix of Google Sheets,
-Apple Notes, Open Brain, Slack uploads, and self-texts with one deliberate place to
-record and revisit theses. Manual entry and manual editing only — no automated
+A single-user web app for tracking Parchmount investment thinking at two levels:
+Topics (broad recurring buckets, no claim) and Views (specific falsifiable bets,
+with hypothesis, evidence for/against, confidence, and time horizon), connected
+many-to-many — a View can relate to more than one Topic or other View at once
+(ADR-002). Replaces the current scattered mix of Google Sheets, Apple Notes,
+Open Brain, Slack uploads, and self-texts with one deliberate place to record
+and revisit theses. Manual entry and manual editing only — no automated
 ingestion or cross-source matching in this version.
 
 ## Core Constraints (Claude Code must respect these — NEVER violate)
@@ -23,13 +25,21 @@ ingestion or cross-source matching in this version.
 
 ## Decisions Log
 - ADR-001: [docs/adr/ADR-001-uuid-primary-keys.md](docs/adr/ADR-001-uuid-primary-keys.md)
+- ADR-002: [docs/adr/ADR-002-many-to-many-topic-view-relationships.md](docs/adr/ADR-002-many-to-many-topic-view-relationships.md)
 - (add as project evolves)
 
 ## Current Phase
-Session 1.1 — spec and repo init complete, scaffold not yet built.
+Session 1.3 complete — schema (topics, views, view_topics, view_relationships,
+evidence_items), RLS policies, GRANT/REVOKE on authenticated, and cross-tenant
+RLS tests all built and pushed to main. No CRUD routes built yet.
 
 ## Conventions
 - TypeScript strict mode on
 - No `any` types without justification comment
 - All async functions have explicit error handling
 - All env vars documented in .env.example
+
+## Carried forward from Session 1.3
+- Verify user_id is server-derived (never client-supplied) in the first CRUD
+  insert/update routes. RLS's WITH CHECK blocks a forged value at the DB layer,
+  but app-layer enforcement (CLAUDE.md #2) can't be verified until routes exist.
