@@ -108,3 +108,81 @@ Date: 2026-07-27
 - Terminal/tool-basics note: Ctrl+C is a held key combination, not
   literal characters to type — typing the letters sends them as input to
   whatever's running instead of stopping it.
+
+## Session 1.3
+Date: 2026-07-28 – 2026-07-29
+
+- What shipped: I shipped five tables (topics, views, view_topics,
+  view_relationships, evidence_items) with RLS enforcing tenancy — direct
+  ownership on two tables, two-sided EXISTS on the join tables, single-sided
+  on evidence_items. I also fixed a GRANT/REVOKE gap (missing base CRUD
+  grants, stray TRUNCATE) and built a vitest suite proving cross-tenant
+  isolation with real auth users against a local Docker instance, including
+  a positive control and an explicit test blocking cross-user
+  relationship-linking. I updated CLAUDE.md and debriefs.md to reflect the
+  actual current state.
+- What broke / what was confusing: The GRANTs bug (Task 4) — my RLS policies
+  were correct but unreachable because the postgres role's default
+  privileges never included SELECT/INSERT/UPDATE/DELETE. I also lost real
+  time to a red herring: I conflated a CLI login/token error with the
+  database password, and ended up resetting the password unnecessarily
+  before finding the actual fix (supabase login).
+- What did Claude Code do brilliantly (heavily-RL'd capability): It
+  proactively caught things beyond what I asked — flagging the TRUNCATE
+  grant unprompted during Task 4 verification, adding a hard runtime guard
+  in the test file refusing to run against a non-local URL, and adding the
+  positive-control test without being told to.
+- What did Claude Code do badly (RL gap): Nothing outright wrong today — the
+  one near-miss was defaulting to FOR ALL without TO authenticated explicit
+  role-scoping on RLS policies (flagged in my review pass as
+  defense-in-depth, not currently exploitable).
+- One oversight catch I'm proud of: I decided to build the two-sided EXISTS
+  check for topics even though I'm currently the only user — recognizing
+  that retrofitting RLS after real data exists is much more expensive than
+  building it correctly now.
+- One oversight I missed (caught in review): The GRANTs gap itself — I
+  approved the RLS-only migrations in Tasks 1-3 without independently
+  suspecting the base ACL layer might be missing; Task 4 (already planned
+  into the session) is what caught it, not something I flagged unprompted.
+- Next session: Session 1.4 — CRUD UI (list + detail). I need to carry
+  forward: verify user_id is server-derived, never client-supplied, in the
+  first insert/update routes (flagged in CLAUDE.md and debriefs.md).
+
+### Reflection
+
+Did "ownership via EXISTS join" actually click, or does it still feel like
+syntax I copied? It makes conceptual sense — since there's no user_id column
+on these tables, the two-sided EXISTS creates a backstop confirming both
+linked rows map back to the same logged-in user. I don't fully own the
+syntax yet, and I'm okay with that — I like that Claude Code surfaces the
+reasoning even when I don't fully internalize it in the moment, because I
+can map it back once the concept clicks. I expect this to keep building as I
+hit it again on future tables.
+
+Did building view_relationships change how I think about tenancy beyond
+"user_id column present or not"? Yes, more broadly than the technical
+mechanism. Today was a real shift from copy-and-paste-approving everything
+in Claude Code toward actually reading each request and discerning read vs.
+write, so I can batch low-stakes approvals and check in more deliberately
+with Claude.ai on the ones that matter. That shift matters more than
+mastering SQL syntax right now — I'm not trying to relearn every layer of
+SQL or Python; today proved I don't need to in order to build real
+judgment. What I'm actually building is an understanding of how the Claude
+Code system works and what's happening at each step — because that's what
+tells me how much autonomy I'd be comfortable granting an agent for
+multi-step, less-supervised work later. That's the real judgment people
+talk about: you don't have to write the code yourself, but you need to
+understand what you're authorizing an agent to do. Trusting that most
+actions are undoable (migrations can be reverted, grants can be revoked) is
+what's giving me the confidence to keep expanding scope. The
+approval-heavy, read-every-diff mode I'm in now isn't the end state — it's
+what has to come first. The actual goal is writing PRDs and specs sharp
+enough that Claude Code can build large batches of work with less real-time
+oversight, so I can spend my own attention on strategy instead of
+line-by-line review. I'm starting to enjoy this part of the process, and I
+expect it to keep compounding session over session.
+
+## Carried forward from Session 1.3
+- Verify user_id is server-derived (never client-supplied) in the first CRUD
+  insert/update routes. RLS's WITH CHECK blocks a forged value at the DB layer,
+  but app-layer enforcement (CLAUDE.md #2) can't be verified until routes exist.
