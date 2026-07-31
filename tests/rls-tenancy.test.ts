@@ -236,4 +236,129 @@ describe("cross-tenant RLS boundaries", () => {
     expect(error).not.toBeNull();
     expect(data).toBeNull();
   });
+
+  it("user A cannot insert a view_topics row linking their view to user B's topic", async () => {
+    const { data, error } = await userA.client
+      .from("view_topics")
+      .insert({ view_id: seedA.viewId, topic_id: seedB.topicId })
+      .select();
+
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+  });
+
+  it("user A cannot insert an evidence_items row against user B's view", async () => {
+    const { data, error } = await userA.client
+      .from("evidence_items")
+      .insert({
+        view_id: seedB.viewId,
+        content: "Evidence attempting cross-tenant link",
+        supports_or_contradicts: "for",
+      })
+      .select();
+
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+  });
+
+  // DELETE is governed by each policy's USING clause, not WITH CHECK. When
+  // USING filters a row out for user B, the DELETE silently matches zero
+  // rows rather than erroring — so the meaningful assertion is that the row
+  // still exists afterward. Verified via user A's own client (not the
+  // service-role admin client): A owns these rows, so USING permits A to
+  // read them back, and this sidesteps service_role's missing table grants
+  // (see grant_authenticated_crud migration — grants were only issued to
+  // `authenticated`, not `service_role`).
+  it("user B cannot delete user A's topic", async () => {
+    const { error } = await userB.client
+      .from("topics")
+      .delete()
+      .eq("id", seedA.topicId);
+    expect(error).toBeNull();
+
+    const { data } = await userA.client
+      .from("topics")
+      .select("id")
+      .eq("id", seedA.topicId);
+    expect(data).toHaveLength(1);
+  });
+
+  it("user B cannot delete user A's view", async () => {
+    const { error } = await userB.client
+      .from("views")
+      .delete()
+      .eq("id", seedA.viewId);
+    expect(error).toBeNull();
+
+    const { data } = await userA.client
+      .from("views")
+      .select("id")
+      .eq("id", seedA.viewId);
+    expect(data).toHaveLength(1);
+  });
+
+  it("user B cannot delete user A's view_topics row", async () => {
+    const { error } = await userB.client
+      .from("view_topics")
+      .delete()
+      .eq("id", seedA.viewTopicId);
+    expect(error).toBeNull();
+
+    const { data } = await userA.client
+      .from("view_topics")
+      .select("id")
+      .eq("id", seedA.viewTopicId);
+    expect(data).toHaveLength(1);
+  });
+
+  it("user B cannot delete user A's view_relationships row", async () => {
+    const { error } = await userB.client
+      .from("view_relationships")
+      .delete()
+      .eq("id", relationshipAId);
+    expect(error).toBeNull();
+
+    const { data } = await userA.client
+      .from("view_relationships")
+      .select("id")
+      .eq("id", relationshipAId);
+    expect(data).toHaveLength(1);
+  });
+
+  it("user B cannot delete user A's evidence_items row", async () => {
+    const { error } = await userB.client
+      .from("evidence_items")
+      .delete()
+      .eq("id", seedA.evidenceId);
+    expect(error).toBeNull();
+
+    const { data } = await userA.client
+      .from("evidence_items")
+      .select("id")
+      .eq("id", seedA.evidenceId);
+    expect(data).toHaveLength(1);
+  });
+
+  // Distinct from the existing INSERT-relink test above: this confirms
+  // WITH CHECK is re-evaluated on UPDATE too, not just enforced once at row
+  // creation. USING passes here (user A owns the row as it stands) — it's
+  // the new view_id_b value that must fail WITH CHECK. Verified via user
+  // A's own client for the same service_role-grant reason noted above.
+  it("user A cannot UPDATE a view_relationships row to relink view_id_b to user B's view", async () => {
+    const { data, error } = await userA.client
+      .from("view_relationships")
+      .update({ view_id_b: seedB.viewId })
+      .eq("id", relationshipAId)
+      .select();
+
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+
+    const { data: unchanged } = await userA.client
+      .from("view_relationships")
+      .select("view_id_b")
+      .eq("id", relationshipAId)
+      .single();
+    expect(unchanged?.view_id_b).toBe(seedA.secondViewId);
+  });
 });
