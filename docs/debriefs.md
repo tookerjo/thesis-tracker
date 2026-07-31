@@ -186,3 +186,47 @@ expect it to keep compounding session over session.
 - Verify user_id is server-derived (never client-supplied) in the first CRUD
   insert/update routes. RLS's WITH CHECK blocks a forged value at the DB layer,
   but app-layer enforcement (CLAUDE.md #2) can't be verified until routes exist.
+
+## Session 1.4 (partial — Task 0 only)
+Date: 2026-07-31
+
+- What shipped: Task 0 only — I closed the four RLS gaps carried
+  forward from Session 1.3. 15/15 tests passing (7 original + 8 new
+  sub-tests). No CRUD UI work started yet.
+- What broke / what was confusing: dotenv silently printed
+  unsolicited output with a URL during test setup — I fixed it with
+  quiet: true. OAuth redirected to production instead of localhost —
+  I re-added localhost to Supabase's redirect allow-list and fixed
+  it. My new RLS tests initially failed for a reason unrelated to
+  RLS: a missing service_role table grant. I fixed it by verifying
+  via the owning user's own client instead.
+- What did Claude Code do brilliantly: it caught the GRANT-vs-RLS
+  distinction unprompted, refused to touch the grants migration as
+  out of scope, and explained the fix clearly.
+- What did Claude Code do badly: it applied an edit to
+  projects-backlog-private.md before showing me the diff, even
+  though I asked to see it first.
+- One oversight catch I'm proud of: I insisted on seeing the exact
+  line where the service-role key was declared instead of taking
+  Claude Code's word for it.
+- One oversight I missed: I leaned on Claude.ai's review of the new
+  tests more than reading the diff myself, especially by the end of
+  the night. I was juggling a lot of unrelated fires (Docker, dotenv,
+  OAuth, GRANTs) and I want to watch that this doesn't become my
+  default.
+- Next session: finish the server/client components explain-it-back
+  test, then Section 4 pre-work, then Task 1 (Views list page). I
+  also need to clean up the stale Supabase cloud project before 1.5.
+
+### Terminal/tool basics
+- Docker Desktop has to be running for local Supabase / RLS tests.
+- I'm using a two-terminal workflow now: one for the dev server, one
+  for everything else.
+- Gitignored files have no git diff / git checkout safety net — I
+  learned this the hard way with projects-backlog-private.md.
+
+### Reflection
+Today was a debugging gauntlet more than a build session. I caught
+some real things myself — the dotenv anomaly, the OAuth redirect
+gap, insisting on verifying the service-role key line — but I also
+need to start digging into the code as applicable. Especially the diffs. I think this is a really interesting part about the judgment process and the transition to coding with AI. I don't need to know the errors necessarily, but i need to understand the way to ask questions that will uncover if there is an issue with the build and then almost be maniacal in validation. Just another observation, i don't think claude is good at logistical planning.Where my strengths are coming through are in 'common sense' and logistical organization of sessions and product build, as well as sercurity validation. While i don't know what each action expressed in code translates to, I know enough to realize what doesn't make sense. When we are consistently re-planning, the human flexibility to hold multiple things at once is proving to be helpful.
