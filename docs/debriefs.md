@@ -230,3 +230,118 @@ Today was a debugging gauntlet more than a build session. I caught
 some real things myself — the dotenv anomaly, the OAuth redirect
 gap, insisting on verifying the service-role key line — but I also
 need to start digging into the code as applicable. Especially the diffs. I think this is a really interesting part about the judgment process and the transition to coding with AI. I don't need to know the errors necessarily, but i need to understand the way to ask questions that will uncover if there is an issue with the build and then almost be maniacal in validation. Just another observation, i don't think claude is good at logistical planning.Where my strengths are coming through are in 'common sense' and logistical organization of sessions and product build, as well as sercurity validation. While i don't know what each action expressed in code translates to, I know enough to realize what doesn't make sense. When we are consistently re-planning, the human flexibility to hold multiple things at once is proving to be helpful.
+
+## Session 1.4
+Date: 2026-08-01 (continued from partial Session 1.4 on 2026-07-31)
+
+- What shipped: The Views list page (/views) and View detail page
+  (/views/[id]), both server components relying entirely on RLS for
+  tenancy — no app-level user_id filtering anywhere. Also shipped an
+  unplanned but necessary schema reconciliation: discovered Session
+  1.3's migration had drifted from both the PRD and tech-design.md in
+  seven undocumented ways (hypothesis added with no PRD lineage,
+  confidence/time_horizon lost their enum constraints, tags was
+  missing, evidence_items had inverted required/optional fields,
+  view_relationships columns were renamed without resolving
+  directionality). Fixed all seven, and made evidence_items many-to-
+  many with views via a new view_evidence join table, since one piece
+  of evidence often covers multiple theses in my actual workflow.
+  Logged as ADR-003. Seeded the three real Parchmount Views from the
+  PRD appendix as actual data for the first time.
+- What broke / what was confusing: The empty /views page this morning
+  led me to discover the schema had silently drifted from the PRD
+  since Session 1.3 — seven real mismatches, none logged as an ADR
+  despite my own CLAUDE.md convention requiring one for non-obvious
+  decisions. This turned a planned ~1 hour of build work into a multi-
+  hour detour. I also hit real friction with terminal/Claude Code
+  basics today — confusing Claude Code's chat window with a plain
+  terminal when trying to cat a file, and losing track of which
+  terminal had the dev server running.
+- What did Claude Code do brilliantly: Caught its own blast radius
+  before I asked — flagged that app/views/page.tsx and the RLS test
+  suite would both break from the reconciliation migration, and
+  refused to touch either without asking first. On the detail page,
+  it closed a real security side-channel I hadn't thought to ask
+  for: folding malformed-UUID errors into the same not-found response
+  as "doesn't exist" and "not yours," so a bad guess can't be
+  distinguished from a well-formed guess. Also correctly refused to
+  guess at auto-generated Postgres constraint names it wasn't certain
+  of, rather than risk a failed migration.
+- What did Claude Code do badly: Under auto mode, it ran
+  `supabase db push` against my live remote database — an irreversible
+  schema change — without a discrete stop for my individual
+  confirmation, even though it narrated what it was about to do first.
+  Separately, last night it applied an edit to a gitignored file
+  before showing me the diff, despite being asked to see it first.
+  Auto mode doesn't have any built-in boundary around git or
+  irreversible operations — that boundary only exists when I state it
+  explicitly, every time.
+- One oversight catch I'm proud of: Reading the actual PRD, tech-
+  design.md, and both existing ADRs side-by-side against the real
+  migration files, instead of accepting my own memory summary of what
+  the three real Views were supposed to contain. That's what surfaced
+  the full seven-item mismatch list instead of just patching the one
+  symptom (empty confidence/time_horizon) I noticed first. I also
+  continue to hold the agent to process even when it skips a step —
+  like catching that Step 6 (the RLS test re-run) got jumped past
+  today. I also caught Claude (the assistant, not Claude Code) trying
+  to skip the formal review pass on Task 2's diff and go straight to
+  debrief — the same kind of momentum-over-process slip this whole
+  session is designed to teach me to catch, coming from the tool
+  that's supposed to be enforcing it.
+- One oversight I missed: I asked Claude Code to run the reconciliation
+  migration under auto mode without registering that "apply this to
+  the live remote database" deserved a harder stop than the mechanical
+  checks (lint, type-check) auto mode had been fine for all day.
+- Next session: Session 1.5 — create/edit forms for Views, plus
+  Topics list page as the opening task (rolled forward from today's
+  Task 3 stretch goal, which didn't get reached). Also need to check
+  for and clean up a stale, unused Supabase cloud project before
+  starting.
+
+### Terminal/tool basics
+- Claude Code's own window intercepts commands like `cat` differently
+  from a real terminal — it reads the file into its own context but
+  won't print raw text to the screen unless asked to.
+- Auto mode will run irreversible commands (including against a live
+  remote database) without an individual stop, unless told explicitly
+  not to — this isn't automatic, it has to be stated every time.
+- `supabase db reset` rebuilds the local database from scratch by
+  replaying every migration file — the right way to confirm a new
+  migration is actually reflected locally, since `supabase start`
+  alone can restore a stale cached snapshot instead.
+
+### Reflection
+The risk with everything I'm doing is that I don't know what I don't
+know. Claude is helpful with surfacing things and laying out the
+traditional structure, but it still doesn't understand and apply
+context, and it doesn't fill in the gaps for things I don't know.
+Today I started using ChatGPT to cross-check some of the UI documents
+and PRD updates — a counter-assessment to what Claude alone was
+saying. I don't think that's a bad thing. I wouldn't be able to do any
+of this as efficiently without these tools, and using a second one to
+check the first just reinforces where the human brain's judgment
+actually creates value. The reps and going through the motions matter
+in this first project — that's part of why the syllabus has three
+projects, so this keeps compounding.
+
+From a workflow standpoint, almost every session there's something to
+expand or correct, and today was no different. A lot of that is
+because I don't yet communicate deliberately enough up front —
+something gets lost in translation as we build in real time, and I
+have to go back and fix it. The good part is the tool makes that
+almost lossless — it takes a few minutes to correct, not a rebuild.
+My instinct is to fix it in the moment rather than pushing it down the
+road, since I don't want a growing backlog of half-right decisions.
+That's a good check on the process, even when it slows a session down.
+
+Something I did really well today: reinforcing process on top of the
+build. I found real discrepancies across the PRD, tech design, and
+actual schema, and put together a plan to fix them — even when my own
+sense of the fix was still abstract, Claude was able to turn that into
+actual, detailed steps. What I'm still working on is identifying and
+flagging these differences more in real time, rather than discovering
+them mid-build. That'll come with pattern recognition as I do more of
+this. The other lever I have is continuing to build my own knowledge
+of architecture best practices directly, so I recognize drift sooner
+myself instead of relying on stumbling into it.
