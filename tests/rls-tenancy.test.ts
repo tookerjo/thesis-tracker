@@ -59,11 +59,12 @@ type Seed = {
   secondViewId: string;
   viewTopicId: string;
   evidenceId: string;
+  viewEvidenceId: string;
 };
 
 // withSecondView: user A gets a second view solely so a same-user
 // view_relationships row can exist to test read-blocking on — a
-// relationship needs two distinct views, and the no-self-link check
+// relationship needs two distinct views, and the canonical-order check
 // constraint rules out using one view twice.
 async function seedTopicAndViews(
   user: TestUser,
@@ -78,7 +79,7 @@ async function seedTopicAndViews(
 
   const { data: view, error: viewError } = await user.client
     .from("views")
-    .insert({ user_id: user.id, title: "View 1", hypothesis: "Hypothesis 1" })
+    .insert({ user_id: user.id, title: "View 1" })
     .select()
     .single();
   if (viewError) throw viewError;
@@ -87,7 +88,7 @@ async function seedTopicAndViews(
   if (opts.withSecondView) {
     const { data: view2, error: view2Error } = await user.client
       .from("views")
-      .insert({ user_id: user.id, title: "View 2", hypothesis: "Hypothesis 2" })
+      .insert({ user_id: user.id, title: "View 2" })
       .select()
       .single();
     if (view2Error) throw view2Error;
@@ -101,16 +102,21 @@ async function seedTopicAndViews(
     .single();
   if (viewTopicError) throw viewTopicError;
 
+  // evidence_items is now directly owned (user_id), not owned via view_id —
+  // it's linked to the view separately through view_evidence.
   const { data: evidence, error: evidenceError } = await user.client
     .from("evidence_items")
-    .insert({
-      view_id: view.id,
-      content: "Some evidence",
-      supports_or_contradicts: "for",
-    })
+    .insert({ user_id: user.id, note: "Some evidence", stance: "for" })
     .select()
     .single();
   if (evidenceError) throw evidenceError;
+
+  const { data: viewEvidence, error: viewEvidenceError } = await user.client
+    .from("view_evidence")
+    .insert({ view_id: view.id, evidence_id: evidence.id })
+    .select()
+    .single();
+  if (viewEvidenceError) throw viewEvidenceError;
 
   return {
     topicId: topic.id,
@@ -118,21 +124,32 @@ async function seedTopicAndViews(
     secondViewId,
     viewTopicId: viewTopic.id,
     evidenceId: evidence.id,
+    viewEvidenceId: viewEvidence.id,
   };
+}
+
+// Sorts a pair of view ids so the first is < the second, matching
+// view_relationships_canonical_order_check. This has nothing to do with
+// RLS — getting it wrong makes an insert/update fail on the CHECK
+// constraint instead of exercising the ownership policy, which would
+// make the surrounding test pass for the wrong reason.
+function canonicalOrder(idA: string, idB: string): [string, string] {
+  return idA < idB ? [idA, idB] : [idB, idA];
 }
 
 async function seedViewRelationship(
   user: TestUser,
   viewIdA: string,
   viewIdB: string,
-): Promise<string> {
+): Promise<{ id: string; view_id: string; related_view_id: string }> {
+  const [view_id, related_view_id] = canonicalOrder(viewIdA, viewIdB);
   const { data, error } = await user.client
     .from("view_relationships")
-    .insert({ view_id_a: viewIdA, view_id_b: viewIdB, relationship_type: "related" })
+    .insert({ view_id, related_view_id, relationship_type: "related" })
     .select()
     .single();
   if (error) throw error;
-  return data.id as string;
+  return { id: data.id as string, view_id, related_view_id };
 }
 
 describe("cross-tenant RLS boundaries", () => {
@@ -140,7 +157,7 @@ describe("cross-tenant RLS boundaries", () => {
   let userB: TestUser;
   let seedA: Seed;
   let seedB: Seed;
-  let relationshipAId: string;
+  let relationshipA: { id: string; view_id: string; related_view_id: string };
 
   beforeAll(async () => {
     userA = await createSignedInUser("user-a");
@@ -149,7 +166,7 @@ describe("cross-tenant RLS boundaries", () => {
     seedA = await seedTopicAndViews(userA, { withSecondView: true });
     seedB = await seedTopicAndViews(userB, { withSecondView: false });
 
-    relationshipAId = await seedViewRelationship(
+    relationshipA = await seedViewRelationship(
       userA,
       seedA.viewId,
       seedA.secondViewId,
@@ -167,15 +184,17 @@ describe("cross-tenant RLS boundaries", () => {
   // Positive control: if this fails, the read-blocking tests below are
   // meaningless — they'd pass for the wrong reason (e.g. broken auth
   // plumbing returning empty results for everyone, not RLS doing its job).
-  it("user A can read their own topic, view, and evidence", async () => {
-    const [topic, view, evidence] = await Promise.all([
+  it("user A can read their own topic, view, evidence, and view_evidence link", async () => {
+    const [topic, view, evidence, viewEvidence] = await Promise.all([
       userA.client.from("topics").select("*").eq("id", seedA.topicId),
       userA.client.from("views").select("*").eq("id", seedA.viewId),
       userA.client.from("evidence_items").select("*").eq("id", seedA.evidenceId),
+      userA.client.from("view_evidence").select("*").eq("id", seedA.viewEvidenceId),
     ]);
     expect(topic.data).toHaveLength(1);
     expect(view.data).toHaveLength(1);
     expect(evidence.data).toHaveLength(1);
+    expect(viewEvidence.data).toHaveLength(1);
   });
 
   it("user B cannot read user A's topic", async () => {
@@ -209,7 +228,7 @@ describe("cross-tenant RLS boundaries", () => {
     const { data, error } = await userB.client
       .from("view_relationships")
       .select("*")
-      .eq("id", relationshipAId);
+      .eq("id", relationshipA.id);
     expect(error).toBeNull();
     expect(data).toEqual([]);
   });
@@ -223,14 +242,23 @@ describe("cross-tenant RLS boundaries", () => {
     expect(data).toEqual([]);
   });
 
+  it("user B cannot read user A's view_evidence row", async () => {
+    const { data, error } = await userB.client
+      .from("view_evidence")
+      .select("*")
+      .eq("id", seedA.viewEvidenceId);
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+  });
+
   it("user A cannot create a view_relationships row linking to user B's view", async () => {
+    const [view_id, related_view_id] = canonicalOrder(
+      seedA.viewId,
+      seedB.viewId,
+    );
     const { data, error } = await userA.client
       .from("view_relationships")
-      .insert({
-        view_id_a: seedA.viewId,
-        view_id_b: seedB.viewId,
-        relationship_type: "related",
-      })
+      .insert({ view_id, related_view_id, relationship_type: "related" })
       .select();
 
     expect(error).not.toBeNull();
@@ -247,14 +275,43 @@ describe("cross-tenant RLS boundaries", () => {
     expect(data).toBeNull();
   });
 
-  it("user A cannot insert an evidence_items row against user B's view", async () => {
+  // evidence_items ownership is now direct (auth.uid() = user_id), so the
+  // meaningful adversarial case is no longer "link to someone else's view"
+  // (that's view_evidence's job, tested below) but a forged user_id — this
+  // is exactly the CLAUDE.md #2 guarantee ("never trust client-supplied
+  // user_id") enforced at the DB layer via WITH CHECK.
+  it("user A cannot insert an evidence_items row using user B's user_id", async () => {
     const { data, error } = await userA.client
       .from("evidence_items")
       .insert({
-        view_id: seedB.viewId,
-        content: "Evidence attempting cross-tenant link",
-        supports_or_contradicts: "for",
+        user_id: userB.id,
+        note: "Evidence attempting to forge ownership",
+        stance: "for",
       })
+      .select();
+
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+  });
+
+  // view_evidence has a two-sided EXISTS policy, so a cross-tenant link can
+  // be attempted from either side — user A's own view paired with user B's
+  // evidence, or user A's own evidence paired with user B's view. Both must
+  // be blocked independently.
+  it("user A cannot insert a view_evidence row linking their view to user B's evidence", async () => {
+    const { data, error } = await userA.client
+      .from("view_evidence")
+      .insert({ view_id: seedA.viewId, evidence_id: seedB.evidenceId })
+      .select();
+
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+  });
+
+  it("user A cannot insert a view_evidence row linking their evidence to user B's view", async () => {
+    const { data, error } = await userA.client
+      .from("view_evidence")
+      .insert({ view_id: seedB.viewId, evidence_id: seedA.evidenceId })
       .select();
 
     expect(error).not.toBeNull();
@@ -315,13 +372,13 @@ describe("cross-tenant RLS boundaries", () => {
     const { error } = await userB.client
       .from("view_relationships")
       .delete()
-      .eq("id", relationshipAId);
+      .eq("id", relationshipA.id);
     expect(error).toBeNull();
 
     const { data } = await userA.client
       .from("view_relationships")
       .select("id")
-      .eq("id", relationshipAId);
+      .eq("id", relationshipA.id);
     expect(data).toHaveLength(1);
   });
 
@@ -339,16 +396,40 @@ describe("cross-tenant RLS boundaries", () => {
     expect(data).toHaveLength(1);
   });
 
+  it("user B cannot delete user A's view_evidence row", async () => {
+    const { error } = await userB.client
+      .from("view_evidence")
+      .delete()
+      .eq("id", seedA.viewEvidenceId);
+    expect(error).toBeNull();
+
+    const { data } = await userA.client
+      .from("view_evidence")
+      .select("id")
+      .eq("id", seedA.viewEvidenceId);
+    expect(data).toHaveLength(1);
+  });
+
   // Distinct from the existing INSERT-relink test above: this confirms
   // WITH CHECK is re-evaluated on UPDATE too, not just enforced once at row
   // creation. USING passes here (user A owns the row as it stands) — it's
-  // the new view_id_b value that must fail WITH CHECK. Verified via user
-  // A's own client for the same service_role-grant reason noted above.
-  it("user A cannot UPDATE a view_relationships row to relink view_id_b to user B's view", async () => {
+  // the new value that must fail WITH CHECK. Verified via user A's own
+  // client for the same service_role-grant reason noted above.
+  //
+  // targetField is chosen so the update stays canonical-order-valid
+  // (view_id < related_view_id) regardless of where seedB.viewId's random
+  // UUID happens to sort relative to relationshipA's existing values —
+  // otherwise the update could fail on the CHECK constraint instead of
+  // RLS's WITH CHECK, which would make this test pass for the wrong reason.
+  it("user A cannot UPDATE a view_relationships row to relink to user B's view", async () => {
+    const targetField =
+      seedB.viewId > relationshipA.view_id ? "related_view_id" : "view_id";
+    const originalValue = relationshipA[targetField];
+
     const { data, error } = await userA.client
       .from("view_relationships")
-      .update({ view_id_b: seedB.viewId })
-      .eq("id", relationshipAId)
+      .update({ [targetField]: seedB.viewId })
+      .eq("id", relationshipA.id)
       .select();
 
     expect(error).not.toBeNull();
@@ -356,9 +437,9 @@ describe("cross-tenant RLS boundaries", () => {
 
     const { data: unchanged } = await userA.client
       .from("view_relationships")
-      .select("view_id_b")
-      .eq("id", relationshipAId)
+      .select("view_id, related_view_id")
+      .eq("id", relationshipA.id)
       .single();
-    expect(unchanged?.view_id_b).toBe(seedA.secondViewId);
+    expect(unchanged?.[targetField]).toBe(originalValue);
   });
 });
