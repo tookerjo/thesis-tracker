@@ -1,7 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/", "/login", "/auth/callback"];
+// /dev-login is listed here unconditionally rather than gated on NODE_ENV:
+// it's harmless dead weight in any build where the route itself doesn't
+// exist (Vercel builds strip app/dev-login entirely, see scripts/build.mjs),
+// and it's required for `next dev` -- otherwise a logged-out user could
+// never reach the sign-in form this exists to provide.
+const PUBLIC_PATHS = ["/", "/login", "/auth/callback", "/dev-login"];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some(

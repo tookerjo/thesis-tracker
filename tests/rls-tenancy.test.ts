@@ -442,4 +442,267 @@ describe("cross-tenant RLS boundaries", () => {
       .single();
     expect(unchanged?.[targetField]).toBe(originalValue);
   });
+
+  // INSERT forgery via an explicitly-passed user_id, for the two
+  // direct-ownership tables not already covered above (evidence_items'
+  // equivalent case is tested at "user A cannot insert an evidence_items
+  // row using user B's user_id"). WITH CHECK must reject the row even
+  // though the client supplied user_id itself -- the DB never trusts a
+  // client-supplied user_id (CLAUDE.md #2).
+  it("user A cannot insert a views row using user B's user_id", async () => {
+    const { data, error } = await userA.client
+      .from("views")
+      .insert({ user_id: userB.id, title: "Forged ownership view" })
+      .select();
+
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+  });
+
+  it("user A cannot insert a topics row using user B's user_id", async () => {
+    const { data, error } = await userA.client
+      .from("topics")
+      .insert({ user_id: userB.id, name: "Forged ownership topic" })
+      .select();
+
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+  });
+
+  // UPDATE, like DELETE, is governed by each policy's USING clause: a row
+  // outside the caller's ownership is filtered out of the candidate set
+  // entirely, so a cross-owner UPDATE affects zero rows and returns no
+  // error rather than erroring -- the same silent-no-op shape as the
+  // DELETE-blocking tests above, just for UPDATE.
+  it("user B cannot UPDATE user A's topic", async () => {
+    const { data, error } = await userB.client
+      .from("topics")
+      .update({ name: "hijacked by user B" })
+      .eq("id", seedA.topicId)
+      .select();
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+
+    const { data: stillOwnedByA } = await userA.client
+      .from("topics")
+      .select("id")
+      .eq("id", seedA.topicId);
+    expect(stillOwnedByA).toHaveLength(1);
+  });
+
+  it("user B cannot UPDATE user A's view", async () => {
+    const { data, error } = await userB.client
+      .from("views")
+      .update({ title: "hijacked by user B" })
+      .eq("id", seedA.viewId)
+      .select();
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+
+    const { data: stillOwnedByA } = await userA.client
+      .from("views")
+      .select("id")
+      .eq("id", seedA.viewId);
+    expect(stillOwnedByA).toHaveLength(1);
+  });
+
+  it("user B cannot UPDATE user A's evidence_items row", async () => {
+    const { data, error } = await userB.client
+      .from("evidence_items")
+      .update({ note: "hijacked by user B" })
+      .eq("id", seedA.evidenceId)
+      .select();
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+
+    const { data: stillOwnedByA } = await userA.client
+      .from("evidence_items")
+      .select("id")
+      .eq("id", seedA.evidenceId);
+    expect(stillOwnedByA).toHaveLength(1);
+  });
+
+  it("user B cannot UPDATE user A's view_topics row", async () => {
+    const { data, error } = await userB.client
+      .from("view_topics")
+      .update({ created_at: new Date().toISOString() })
+      .eq("id", seedA.viewTopicId)
+      .select();
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+
+    const { data: stillOwnedByA } = await userA.client
+      .from("view_topics")
+      .select("id")
+      .eq("id", seedA.viewTopicId);
+    expect(stillOwnedByA).toHaveLength(1);
+  });
+
+  it("user B cannot UPDATE user A's view_relationships row", async () => {
+    const { data, error } = await userB.client
+      .from("view_relationships")
+      .update({ relationship_type: "hijacked by user B" })
+      .eq("id", relationshipA.id)
+      .select();
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+
+    const { data: stillOwnedByA } = await userA.client
+      .from("view_relationships")
+      .select("id")
+      .eq("id", relationshipA.id);
+    expect(stillOwnedByA).toHaveLength(1);
+  });
+
+  it("user B cannot UPDATE user A's view_evidence row", async () => {
+    const { data, error } = await userB.client
+      .from("view_evidence")
+      .update({ created_at: new Date().toISOString() })
+      .eq("id", seedA.viewEvidenceId)
+      .select();
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+
+    const { data: stillOwnedByA } = await userA.client
+      .from("view_evidence")
+      .select("id")
+      .eq("id", seedA.viewEvidenceId);
+    expect(stillOwnedByA).toHaveLength(1);
+  });
+
+  // Re-pointing forgery via UPDATE, same shape as the view_relationships
+  // relink test above but for the other two join tables: USING passes
+  // (user A owns the row as it stands), so it's the new FK value that must
+  // fail WITH CHECK on re-evaluation.
+  it("user A cannot UPDATE their own view_topics row to re-point topic_id at user B's topic", async () => {
+    const { data, error } = await userA.client
+      .from("view_topics")
+      .update({ topic_id: seedB.topicId })
+      .eq("id", seedA.viewTopicId)
+      .select();
+
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+
+    const { data: unchanged } = await userA.client
+      .from("view_topics")
+      .select("topic_id")
+      .eq("id", seedA.viewTopicId)
+      .single();
+    expect(unchanged?.topic_id).toBe(seedA.topicId);
+  });
+
+  it("user A cannot UPDATE their own view_evidence row to re-point evidence_id at user B's evidence", async () => {
+    const { data, error } = await userA.client
+      .from("view_evidence")
+      .update({ evidence_id: seedB.evidenceId })
+      .eq("id", seedA.viewEvidenceId)
+      .select();
+
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+
+    const { data: unchanged } = await userA.client
+      .from("view_evidence")
+      .select("evidence_id")
+      .eq("id", seedA.viewEvidenceId)
+      .single();
+    expect(unchanged?.evidence_id).toBe(seedA.evidenceId);
+  });
+
+  // ADR-004: cascade must remove only the join rows, never the parent
+  // entities. Uses a fresh, self-contained seed (not seedA, which other
+  // tests above still depend on) so this can delete a view without
+  // disturbing the rest of the suite.
+  //
+  // view_id/topic_id/evidence_id are all NOT NULL, so ON DELETE SET NULL
+  // isn't a valid configuration here, and ON DELETE RESTRICT/NO ACTION
+  // would have made the delete below fail with a foreign-key-violation
+  // error instead of succeeding. A clean delete followed by an empty
+  // read-back is therefore only possible if the join rows were actually
+  // removed by CASCADE -- not merely hidden from userA by RLS, since RLS
+  // would hide an orphaned row from its own would-be owner too (the
+  // two-sided EXISTS check requires the now-deleted view to still exist).
+  it("deleting a view cascades to its view_topics and view_evidence rows without touching the linked topic or evidence_items row", async () => {
+    const cascadeSeed = await seedTopicAndViews(userA, { withSecondView: false });
+
+    const { error: deleteError } = await userA.client
+      .from("views")
+      .delete()
+      .eq("id", cascadeSeed.viewId);
+    expect(deleteError).toBeNull();
+
+    const [viewTopicAfter, viewEvidenceAfter] = await Promise.all([
+      userA.client
+        .from("view_topics")
+        .select("id")
+        .eq("id", cascadeSeed.viewTopicId),
+      userA.client
+        .from("view_evidence")
+        .select("id")
+        .eq("id", cascadeSeed.viewEvidenceId),
+    ]);
+    expect(viewTopicAfter.data).toEqual([]);
+    expect(viewEvidenceAfter.data).toEqual([]);
+
+    const [topicAfter, evidenceAfter] = await Promise.all([
+      userA.client.from("topics").select("id").eq("id", cascadeSeed.topicId),
+      userA.client
+        .from("evidence_items")
+        .select("id")
+        .eq("id", cascadeSeed.evidenceId),
+    ]);
+    expect(topicAfter.data).toHaveLength(1);
+    expect(evidenceAfter.data).toHaveLength(1);
+  });
+
+  // Same reasoning as the view-delete cascade test above: view_topics.topic_id
+  // is NOT NULL, so a clean delete followed by an empty read-back is only
+  // possible via CASCADE, not an orphaned-but-RLS-hidden row.
+  it("deleting a topic cascades its view_topics rows without touching the linked view", async () => {
+    const cascadeSeed = await seedTopicAndViews(userA, { withSecondView: false });
+
+    const { error: deleteError } = await userA.client
+      .from("topics")
+      .delete()
+      .eq("id", cascadeSeed.topicId);
+    expect(deleteError).toBeNull();
+
+    const { data: viewTopicAfter } = await userA.client
+      .from("view_topics")
+      .select("id")
+      .eq("id", cascadeSeed.viewTopicId);
+    expect(viewTopicAfter).toEqual([]);
+
+    const { data: viewAfter } = await userA.client
+      .from("views")
+      .select("id")
+      .eq("id", cascadeSeed.viewId);
+    expect(viewAfter).toHaveLength(1);
+  });
+
+  // Same reasoning as the view-delete cascade test above: view_evidence.evidence_id
+  // is NOT NULL, so a clean delete followed by an empty read-back is only
+  // possible via CASCADE, not an orphaned-but-RLS-hidden row.
+  it("deleting an evidence_items row cascades its view_evidence rows without touching the linked view", async () => {
+    const cascadeSeed = await seedTopicAndViews(userA, { withSecondView: false });
+
+    const { error: deleteError } = await userA.client
+      .from("evidence_items")
+      .delete()
+      .eq("id", cascadeSeed.evidenceId);
+    expect(deleteError).toBeNull();
+
+    const { data: viewEvidenceAfter } = await userA.client
+      .from("view_evidence")
+      .select("id")
+      .eq("id", cascadeSeed.viewEvidenceId);
+    expect(viewEvidenceAfter).toEqual([]);
+
+    const { data: viewAfter } = await userA.client
+      .from("views")
+      .select("id")
+      .eq("id", cascadeSeed.viewId);
+    expect(viewAfter).toHaveLength(1);
+  });
 });

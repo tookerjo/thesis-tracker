@@ -26,6 +26,9 @@ ingestion or cross-source matching in this version.
 ## Decisions Log
 - ADR-001: [docs/adr/ADR-001-uuid-primary-keys.md](docs/adr/ADR-001-uuid-primary-keys.md)
 - ADR-002: [docs/adr/ADR-002-many-to-many-topic-view-relationships.md](docs/adr/ADR-002-many-to-many-topic-view-relationships.md)
+- ADR-003: [docs/adr/ADR-003-prd-schema-reconciliation.md](docs/adr/ADR-003-prd-schema-reconciliation.md)
+- ADR-004: [docs/adr/ADR-004-cascade-delete.md](docs/adr/ADR-004-cascade-delete.md)
+- ADR-005: [docs/adr/ADR-005-rls-policy-scoping.md](docs/adr/ADR-005-rls-policy-scoping.md)
 - (add as project evolves)
 
 ## Current Phase

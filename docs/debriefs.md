@@ -345,3 +345,66 @@ them mid-build. That'll come with pattern recognition as I do more of
 this. The other lever I have is continuing to build my own knowledge
 of architecture best practices directly, so I recognize drift sooner
 myself instead of relying on stumbling into it.
+
+## Debrief — Session 1.5: CRUD UI (create + edit)
+Date: 2026-08-03
+
+- What shipped: Live edit and create for the views table. RLS hardened
+  across all six tables, not just views/topics. Topics list page built
+  and verified. Dev-login test infrastructure built as an unplanned but
+  necessary addition.
+- What broke / what was confusing: The specific differences between RLS
+  policy shapes were confusing at first. WITH CHECK versus USING made
+  sense once I saw it protects against direct API access, not just the
+  form — but I don't fully track the weight and context of that
+  distinction more broadly yet. The manual, step-by-step approval
+  process also worked against the flow. Given how fast Claude Code can
+  actually fix things once flagged, all the individual approvals slowed
+  the session down more than they protected it.
+- What did Claude Code do brilliantly: Verified things directly instead
+  of asserting them. Checked pg_policies against the live database when
+  pushed back, ran real INSERT/UPDATE forgery attempts instead of
+  trusting the test suite alone.
+- What did Claude Code do badly (RL gap): Offers its best suggestion
+  without justifying why up front. Misjudges time and scope in both
+  directions — Task 1 and Task 2 both expanded because Claude Code
+  didn't fully know what the objective required when it wrote its own
+  first-draft prompts. Overestimated how much effort small fixes (font
+  contrast) would take. Stated something factually wrong about RLS
+  policy state (claimed views_owner_all was still backstopping the edit
+  action when that policy no longer existed) without checking first.
+- One oversight catch I'm proud of: Catching that the migration only
+  covered views/topics when ADR-005 said "and their join tables" —
+  forced a live query instead of trusting the summary. Same pattern
+  caught it again later when it cited a policy that no longer existed.
+- One oversight I missed: Not one specific miss today, but a standing
+  discipline to keep enforcing — not letting Claude Code punt on
+  things that are actually five-minute fixes.
+- Next session: 1.6 — Polish + tests.
+
+### Terminal/tool basics
+- The real shift today wasn't learning SQL or RLS syntax line by line.
+  It was realizing my actual job is closer to managing an engineer than
+  being one — making sure the agent produces something secure and
+  correct, not making sure I personally understand every line of code.
+
+### Reflection
+Session-specific:
+- Did WITH CHECK vs USING actually click, or does it still feel
+  hand-wavy? It clicked at the mechanism level. Still calibrating the
+  broader weight of it.
+- Seven threads in one session — real progress or scope creep in a new
+  place? Didn't feel like scope creep. Task 0 cleanup, the ADRs,
+  dev-login, and the two CRUD surfaces all directly served getting
+  today's objective done and verified.
+- Claude Code made two factual claims about RLS state that turned out
+  wrong — what does that tell me about trusting agent self-reports?
+  Don't trust the summary. Verify against the live system directly,
+  every time it matters.
+
+Additional reflection: What we built today is basic — a developer who
+already knows the stack could ship this faster using libraries I don't
+know yet. That's fine. The value is the judgment layer I'm building on
+top of directing an agent to produce secure output. Going forward, my
+real lever is prompting better up front so fewer manual approvals are
+needed at all.

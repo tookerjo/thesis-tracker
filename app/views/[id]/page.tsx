@@ -48,7 +48,15 @@ export default async function ViewDetailPage({
       <Link href="/views" className="text-sm text-neutral-500 hover:underline">
         ← Back to Views
       </Link>
-      <h1 className="text-2xl font-semibold">{view.title}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">{view.title}</h1>
+        <Link
+          href={`/views/${view.id}/edit`}
+          className="text-sm text-neutral-500 hover:underline"
+        >
+          Edit
+        </Link>
+      </div>
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2">
         <dt className="text-sm text-neutral-500">Confidence</dt>
         <dd>{view.confidence_level}</dd>
