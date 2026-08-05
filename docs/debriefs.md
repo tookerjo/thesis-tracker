@@ -437,3 +437,35 @@ When a tool was missing or a dependency wasn't installed correctly, the instinct
 
 ## Next session
 Session 1.6a — Topics CRUD (detail/create/edit), reusing today's shared primitives. This pushes the syllabus timeline into September. Given I'm balancing this against actual vacation time and wanting to read, I need to figure out real pacing rather than assuming the original calendar still holds.
+
+## Session 1.6a: Topics CRUD (detail/create/edit)
+Date: 2026-08-05
+
+## What shipped
+Topics has full CRUD now. Detail page, create page, edit page, list page links. Three commits landed: 8d46053, e855eb8, 63519fa. All pushed to origin/main.
+
+## What broke / what was confusing
+Two infrastructure failures ate real time today, neither related to code I wrote. The dev server died from Turbopack cache corruption after a long session. Local Supabase's Docker container exited silently partway through and gave contradictory status messages before I force-restarted it.
+
+I also lost track of session state twice. I asked Claude.ai to check things it can't check (it doesn't have filesystem access, only Claude Code does). I pasted a stale test-output.txt file back into chat multiple times thinking it was a live result, when it was actually a leftover log from an earlier failed run.
+
+## What Claude Code did brilliantly
+Every task mirrored the Views pattern correctly on the first pass. Auth checks, RLS-reliance on reads, explicit user_id filtering on writes, collapsed not-found/not-owned error handling. It caught its own inconsistency when my build prompt assumed a revalidatePath pattern that doesn't actually exist in the codebase, and it didn't invent one just to satisfy the prompt. It also proactively flagged two real gaps I hadn't asked about: the missing Edit link (route unreachable from the UI) and the missing empty-state CTA on the Topics list.
+
+## What Claude Code did badly
+Nothing structurally wrong in the code itself. The self-reported "clean build" summaries were technically accurate but I had to push past them each time to see the real diff before approving — the habit of trusting the summary is still a live risk for me, not a Claude Code failure.
+
+## One oversight catch I'm proud of
+Catching the framingNote type mismatch before commit. The pasted code didn't show framingNote on UpdateTopicInput even though the function body used it. Turned out to be a paste artifact, not a real bug, but stopping and demanding live tsc output instead of approving on a hunch was the right call regardless of the outcome.
+
+## One oversight I missed
+I let today's session run without any new tests for the Topics action layer. My own CLAUDE.md constraint #5 requires auth-path and cross-tenant tests, and I only caught this in the Section 7 review pass, after three commits were already pushed. I verified manually (auth redirect, cross-tenant blocking) but nothing automated locks that in.
+
+## Session-specific: did copying Views' pattern feel right, or did I want to abstract?
+Copying felt correct. Nothing about building Topics made me want a shared abstraction. The concept (wait for a third instance) held up in practice, not just in theory.
+
+## Infrastructure note
+Docker/Supabase and the dev server both destabilized after several hours of continuous use. Next long session, I should expect this and check `supabase status` proactively if anything gets weird, rather than assuming it's a code problem first.
+
+## Next session
+Session 1.6b: Evidence CRUD UI. Opens with the stance placement decision (per-item vs per-link). Carries forward mandatory tasks: tests for Topics action layer (createTopic, updateTopic), and the framing_note display decision.
