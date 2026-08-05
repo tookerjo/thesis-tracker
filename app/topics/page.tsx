@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -47,7 +48,11 @@ export default async function TopicsPage() {
         <tbody>
           {topics.map((topic) => (
             <tr key={topic.id} className="border-b border-neutral-100">
-              <td className="py-2 pr-4">{topic.name}</td>
+              <td className="py-2 pr-4">
+                <Link href={`/topics/${topic.id}`} className="hover:underline">
+                  {topic.name}
+                </Link>
+              </td>
               <td className="py-2 pr-4">{topic.view_topics[0]?.count ?? 0}</td>
             </tr>
           ))}

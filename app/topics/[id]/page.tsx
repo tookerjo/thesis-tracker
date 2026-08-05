@@ -50,7 +50,15 @@ export default async function TopicDetailPage({
       <Link href="/topics" className="text-sm text-neutral-500 hover:underline">
         ← Back to Topics
       </Link>
-      <h1 className="text-2xl font-semibold">{topic.name}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">{topic.name}</h1>
+        <Link
+          href={`/topics/${topic.id}/edit`}
+          className="text-sm text-neutral-500 hover:underline"
+        >
+          Edit
+        </Link>
+      </div>
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2">
         <dt className="text-sm text-neutral-500">Created</dt>
         <dd>{formatFullDate(topic.created_at)}</dd>
