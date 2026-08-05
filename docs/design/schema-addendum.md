@@ -1,3 +1,5 @@
+**SUPERSEDED.** This reflects the Session 1.3 schema before the Session 1.4 evidence redesign. evidence_items is now many-to-many with views via the view_evidence join table (two-sided RLS), not the single-sided FK described below. Current source of truth: supabase/migrations/ and docs/adr/ADR-003-prd-schema-reconciliation.md onward.
+
 # Schema Addendum: Session 1.3 — Data Model + Tenancy
 
 ## topics

@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 
 type TopicRow = {
   id: string;
@@ -25,19 +27,11 @@ export default async function TopicsPage() {
     .returns<TopicRow[]>();
 
   if (error) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-2">
-        <p className="text-neutral-500">Unable to load topics right now.</p>
-      </main>
-    );
+    return <ErrorState message="Unable to load topics right now." />;
   }
 
   if (topics.length === 0) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-2">
-        <p className="text-neutral-500">No topics yet</p>
-      </main>
-    );
+    return <EmptyState message="No topics yet" />;
   }
 
   return (

@@ -42,6 +42,12 @@ RLS tests all built and pushed to main. No CRUD routes built yet.
 - All async functions have explicit error handling
 - All env vars documented in .env.example
 
+## Session Close-Out
+Before ending any session, update docs/CURRENT-STATE.md to reflect verified reality — check the actual filesystem/migrations/tests, don't rely on memory or prior summaries. This file is a snapshot, not a log:
+- Overwrite sections in place; don't append history on top of old content.
+- When something moves from "deferred/backlog" to "done," remove it from this file entirely — its history belongs in docs/debriefs.md, not here.
+- Keep each entity/section to what's true right now, not a running commentary of how it got that way.
+
 ## Carried forward from Session 1.3
 - Verify user_id is server-derived (never client-supplied) in the first CRUD
   insert/update routes. RLS's WITH CHECK blocks a forged value at the DB layer,

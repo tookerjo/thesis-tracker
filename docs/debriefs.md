@@ -408,3 +408,32 @@ know yet. That's fine. The value is the judgment layer I'm building on
 top of directing an agent to produce secure output. Going forward, my
 real lever is prompting better up front so fewer manual approvals are
 needed at all.
+
+## Session 1.6: Polish + Tests
+Date: 2026-08-05
+
+## What shipped
+Shared UI primitives (Skeleton, TableSkeleton, DetailSkeleton, FormSkeleton, EmptyState, ErrorState, NotFoundState). Loading/error/empty states wired into Views (list/detail/create/edit) and Topics list. Custom 404 page. Playwright added as a real devDependency, used to visually verify pages. New middleware-auth.test.ts, 2 tests. Test suite: 34/34 passing. Found and fixed two real bugs during review: Skeleton's hardcoded light-mode color, and a stale "Create Next App" page title that had never been changed. Closed out three stale/missing docs: annotated the old schema doc as superseded, wrote the Session 1.4 doc that never got saved anywhere, and created CURRENT-STATE.md as a single place to check what's actually built before scoping anything new — with a rule in CLAUDE.md requiring it gets updated at the end of every session so it doesn't go stale the way the old schema doc did.
+
+## What broke / what was confusing
+This session was supposed to take one, maybe two sessions. It's now four. Views and Topics were supposed to both have full CRUD going into today — Topics only had a list page. Delete didn't exist anywhere. Evidence CRUD, the actual point of this product, was never built at all. All three were marked done in prior planning without anyone actually checking the app against the claim.
+
+The part that's most frustrating: I agreed to insert the evidence CRUD session based on Claude telling me it was a few extra hours of work. That estimate was wrong, and it was wrong because Claude never verified whether Topics CRUD existed before giving it to me. I made a real decision — accepting the resequencing — based on a number that hadn't been checked. Finding that out mid-build, not before I agreed to anything, is exactly the kind of thing this syllabus is supposed to teach me to catch, and today I only caught it by accident, not by process.
+
+## What I'm taking from this
+I think the real lesson here is about front-loading design clarity before letting an agent build. The times today that caused the most damage were the times a plan got treated as complete without anyone checking it against reality. I don't think that's fixable by just trying harder to double check things after the fact — I think it has to be built into how a session starts, not how it ends. Knowing precisely what I want, what I explicitly don't want, and what "done" verifiably looks like, before build starts, has to be the actual discipline. Not more reviewing after the fact.
+
+The other hard part: I can't see whether something's actually complete until I test it myself. Looking at a diff of code I didn't write doesn't tell me it's real. Clicking through the app does. That's slow, and it's also probably the only thing that actually protects me.
+
+I think the other thing that I'm learning is that I need to really take the time to understand some of the suggestions. I did not like the Skeleton. I think it's weird. I don't know where or how it's used in other places, or maybe we didn't build it properly, but it doesn't seem like it actually creates a more minimalist and seamless approach. I'm not sure what the point is.
+
+It's just a reminder as I learn: Claude is not the arbiter of truth. It's an aggregation of certain information, certain processes, and certain styles, and I should not always have to just accept it.
+
+## Agent-good (heavily-RL'd, trust this)
+Checked the existing test suite before writing new tests, found 5 of 6 already existed, didn't pad the suite with duplicates. Correctly reasoned that RLS policies are symmetric rather than assuming more test count means more safety. Read actual page code before proposing a plan. Was explicit about what was mocked versus real in test design.
+
+## Agent-bad (RL gap)
+When a tool was missing or a dependency wasn't installed correctly, the instinct was to add another layer of workaround rather than stop and verify the simple thing, or just tell me directly. Strong at checking a specific file or command right before acting. Weak at questioning something inherited from a prior session or a prior conversation — that's exactly what let "Topics has full CRUD" go unchecked into today's plan.
+
+## Next session
+Session 1.6a — Topics CRUD (detail/create/edit), reusing today's shared primitives. This pushes the syllabus timeline into September. Given I'm balancing this against actual vacation time and wanting to read, I need to figure out real pacing rather than assuming the original calendar still holds.

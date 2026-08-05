@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatRelativeTime } from "@/lib/format/relative-time";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 
 type ViewRow = {
   id: string;
@@ -29,18 +31,15 @@ export default async function ViewsPage() {
     .returns<ViewRow[]>();
 
   if (error) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-2">
-        <p className="text-neutral-500">Unable to load views right now.</p>
-      </main>
-    );
+    return <ErrorState message="Unable to load views right now." />;
   }
 
   if (views.length === 0) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-2">
-        <p className="text-neutral-500">No views yet</p>
-      </main>
+      <EmptyState
+        message="No views yet"
+        cta={{ href: "/views/new", label: "Create your first View" }}
+      />
     );
   }
 

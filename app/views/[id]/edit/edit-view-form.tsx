@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateView } from "./actions";
 import { CONFIDENCE_LEVELS, TIME_HORIZONS } from "@/lib/views/field-options";
+import { ErrorState } from "@/components/ui/error-state";
 
 export function EditViewForm({
   viewId,
@@ -99,7 +100,7 @@ export function EditViewForm({
           ))}
         </select>
       </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <ErrorState message={error} variant="inline" />}
       <button
         type="submit"
         disabled={submitting}
