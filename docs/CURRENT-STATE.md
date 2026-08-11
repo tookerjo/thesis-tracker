@@ -68,6 +68,8 @@ Also not yet tested: the Topics action-layer functions `createTopic` (`app/topic
 - Dark-mode check (contrast, destructive buttons, validation messages, focus outlines, disabled submit-button state) across all touched pages, including whatever delete UI eventually ships.
 - `TableSkeleton` row-count jump — defaults to 6 rows regardless of real data volume, causing a visible shrink when real content is smaller (e.g. 3 real Views vs. 6 skeleton rows). Options identified: lower the default row count, or add a fade transition.
 - Slow `/views` page load — reported and reproduced; cause not yet identified. Duplicate port-3000 processes ruled out as the explanation.
+- Header content cut off at right edge of viewport — the Topics nav link (and possibly other header content) appears clipped at the right edge; observed on the View detail page, where the "Add evidence" link is also cut off. Needs investigation.
+- Views' `tags` column is set-invisible from the UI — the column exists in schema (migration `20260801161736`, ADR-003) and the View detail page displays it, but neither the create nor edit form has a field to set it, so it's effectively always null from the UI's perspective. A write path (form field + action wiring) was never built.
 
 **Still open, no session assigned** — Delete UI + confirmation dialog for Views and Topics. Was in Session 1.6's original polish scope; check `docs/session-specs/1.6-polish-tests.md`'s Definition of Done for current status before assuming it's done.
 
