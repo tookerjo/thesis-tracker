@@ -737,4 +737,68 @@ describe("cross-tenant RLS boundaries", () => {
       .eq("id", cascadeSeed.viewId);
     expect(viewAfter).toHaveLength(1);
   });
+
+  // ADR-006 atomic capture: create_view_evidence inserts the evidence_items
+  // row and its view_evidence link inside one server-side transaction (see
+  // migration 20260811154206_create_view_evidence_rpc.sql). Happy path -- a
+  // valid, owned view_id creates both rows, correctly linked, with link/note
+  // on the evidence and stance on the link.
+  it("create_view_evidence inserts a linked evidence_items + view_evidence row for the owner", async () => {
+    const { data: evidenceId, error } = await userA.client.rpc(
+      "create_view_evidence",
+      {
+        p_view_id: seedA.viewId,
+        p_link: "https://example.com/atomic-happy-path",
+        p_note: "Atomic happy-path note",
+        p_stance: "context",
+      },
+    );
+    expect(error).toBeNull();
+    expect(evidenceId).toBeTruthy();
+
+    const { data: evidence } = await userA.client
+      .from("evidence_items")
+      .select("id, user_id, link, note")
+      .eq("id", evidenceId)
+      .single();
+    expect(evidence?.user_id).toBe(userA.id);
+    expect(evidence?.link).toBe("https://example.com/atomic-happy-path");
+    expect(evidence?.note).toBe("Atomic happy-path note");
+
+    const { data: link } = await userA.client
+      .from("view_evidence")
+      .select("view_id, evidence_id, stance")
+      .eq("evidence_id", evidenceId)
+      .single();
+    expect(link?.view_id).toBe(seedA.viewId);
+    expect(link?.evidence_id).toBe(evidenceId);
+    expect(link?.stance).toBe("context");
+  });
+
+  // Atomicity + tenancy in one: user A calls create_view_evidence with user
+  // B's view_id. The evidence_items insert would pass RLS on its own (owned
+  // by A), but the view_evidence insert fails the two-sided WITH CHECK (A
+  // doesn't own B's view), aborting the whole transaction. The RPC must error
+  // AND leave no orphaned evidence_items row -- probed via a unique note
+  // marker so a stray orphan can't hide among A's other seeded evidence rows.
+  // The probe runs as user A: evidence_items is directly owned, so if an
+  // orphan (user_id = A, no link) existed, A could read it back -- an empty
+  // result therefore means the row was rolled back, not merely RLS-hidden.
+  it("create_view_evidence rolls back the evidence_items row when the view belongs to another user", async () => {
+    const orphanMarker = `orphan-probe-${randomUUID()}`;
+
+    const { error } = await userA.client.rpc("create_view_evidence", {
+      p_view_id: seedB.viewId,
+      p_link: "https://example.com/should-not-persist",
+      p_note: orphanMarker,
+      p_stance: "for",
+    });
+    expect(error).not.toBeNull();
+
+    const { data: orphans } = await userA.client
+      .from("evidence_items")
+      .select("id")
+      .eq("note", orphanMarker);
+    expect(orphans).toEqual([]);
+  });
 });
