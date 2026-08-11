@@ -2,6 +2,13 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatFullDate } from "@/lib/format/full-date";
+import { STANCE_OPTIONS } from "@/lib/evidence/field-options";
+
+type EvidenceLink = {
+  id: string;
+  stance: string | null;
+  evidence_items: { id: string; link: string | null; note: string | null } | null;
+};
 
 type ViewDetailRow = {
   id: string;
@@ -11,6 +18,23 @@ type ViewDetailRow = {
   tags: string | null;
   created_at: string;
   updated_at: string;
+  view_evidence: EvidenceLink[];
+};
+
+type EvidenceItem = {
+  key: string;
+  stance: string | null;
+  link: string | null;
+  note: string | null;
+};
+
+// stance is one of STANCE_OPTIONS or null (DB CHECK), so null-stance evidence
+// falls into a trailing "Unspecified" group. Labels are display-cased copies
+// of the stored lowercase values.
+const STANCE_LABELS: Record<string, string> = {
+  for: "For",
+  against: "Against",
+  context: "Context",
 };
 
 export default async function ViewDetailPage({
@@ -30,7 +54,9 @@ export default async function ViewDetailPage({
 
   const { data: view, error } = await supabase
     .from("views")
-    .select("id, title, confidence_level, time_horizon, tags, created_at, updated_at")
+    .select(
+      "id, title, confidence_level, time_horizon, tags, created_at, updated_at, view_evidence(id, stance, evidence_items(id, link, note))",
+    )
     .eq("id", id)
     .returns<ViewDetailRow[]>()
     .maybeSingle();
@@ -42,6 +68,38 @@ export default async function ViewDetailPage({
   if (error || !view) {
     notFound();
   }
+
+  // Flatten the join rows to the evidence itself, carrying stance down from
+  // the view_evidence link (ADR-006: stance is per-link, not per-item). The
+  // view_evidence.id is the stable key. Defends against a null embedded
+  // evidence_items row even though the FK makes that unreachable.
+  const evidence: EvidenceItem[] = view.view_evidence
+    .map((entry) =>
+      entry.evidence_items
+        ? {
+            key: entry.id,
+            stance: entry.stance,
+            link: entry.evidence_items.link,
+            note: entry.evidence_items.note,
+          }
+        : null,
+    )
+    .filter((item): item is EvidenceItem => item !== null);
+
+  // Group in the canonical stance order, with null-stance evidence last.
+  // Only non-empty groups render.
+  const stanceGroups = [
+    ...STANCE_OPTIONS.map((stance) => ({
+      key: stance,
+      label: STANCE_LABELS[stance],
+      items: evidence.filter((item) => item.stance === stance),
+    })),
+    {
+      key: "unspecified",
+      label: "Unspecified",
+      items: evidence.filter((item) => item.stance === null),
+    },
+  ].filter((group) => group.items.length > 0);
 
   return (
     <main className="flex min-h-screen flex-col gap-6 p-8">
@@ -69,6 +127,54 @@ export default async function ViewDetailPage({
         <dt className="text-sm text-neutral-500">Updated</dt>
         <dd>{formatFullDate(view.updated_at)}</dd>
       </dl>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-neutral-500">Evidence</h2>
+          <Link
+            href={`/views/${view.id}/evidence/new`}
+            className="text-sm text-neutral-500 hover:underline"
+          >
+            Add evidence
+          </Link>
+        </div>
+        {evidence.length === 0 ? (
+          <p className="text-sm text-neutral-500">
+            No evidence attached to this view yet.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {stanceGroups.map((group) => (
+              <div key={group.key} className="flex flex-col gap-2">
+                <h3 className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  {group.label}
+                  <span className="rounded-full border border-neutral-600 px-2 py-0.5 text-xs font-normal normal-case">
+                    {group.items.length}
+                  </span>
+                </h3>
+                <ul className="flex flex-col gap-3">
+                  {group.items.map((item) => (
+                    <li key={item.key} className="flex flex-col gap-0.5">
+                      {item.link && (
+                        <a
+                          href={item.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="break-all text-sm hover:underline"
+                        >
+                          {item.link}
+                        </a>
+                      )}
+                      {item.note && (
+                        <p className="text-sm text-foreground">{item.note}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </main>
   );
 }

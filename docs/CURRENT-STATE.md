@@ -24,10 +24,12 @@ Read this first, before scoping any new session. Verified directly against the f
 ### Shared UI components (`components/ui/`)
 `skeleton.tsx`, `table-skeleton.tsx`, `detail-skeleton.tsx`, `form-skeleton.tsx`, `empty-state.tsx`, `error-state.tsx`, `not-found-state.tsx` — used across the Views and Topics pages. `app/not-found.tsx` (root) renders `NotFoundState` for the collapsed not-found/unauthorized case.
 
-### Evidence — create/attach flow exists, no read/edit UI
+### Evidence — create/attach and display exist, no edit or standalone list
 `evidence_items` and `view_evidence` tables exist (migrations `20260801161736_reconcile_schema_with_prd.sql` and `20260811151408_move_stance_to_view_evidence.sql`), many-to-many with `views`, two-sided RLS on `view_evidence`. `stance` is a three-value CHECK (`for`/`against`/`context`) on `view_evidence`, not `evidence_items`: per **ADR-006** (`docs/adr/ADR-006-stance-per-link.md`), stance is relationship-level metadata describing how a specific evidence item relates to a specific View, so it lives on the view↔evidence link. The per-item-vs-per-link question is resolved (ADR-006), no longer open.
 
-The create/attach flow exists at `app/views/[id]/evidence/new/` (page + `new-evidence-form.tsx` + `actions.ts` + `loading.tsx`): from a View, a user creates an evidence item (link and/or note — at least one required) and attaches it to that View with an optional stance, in one atomic action. The two inserts (`evidence_items` then `view_evidence`) run inside the `create_view_evidence` RPC (`SECURITY INVOKER`, migration `20260811154206_create_view_evidence_rpc.sql`) so a failure on the second rolls back the first — no orphaned evidence rows. Still open: no display/read UI (a created item doesn't render on the View detail page), no edit, no standalone evidence list.
+The create/attach flow exists at `app/views/[id]/evidence/new/` (page + `new-evidence-form.tsx` + `actions.ts` + `loading.tsx`): from a View, a user creates an evidence item (link and/or note — at least one required) and attaches it to that View with an optional stance, in one atomic action. The two inserts (`evidence_items` then `view_evidence`) run inside the `create_view_evidence` RPC (`SECURITY INVOKER`, migration `20260811154206_create_view_evidence_rpc.sql`) so a failure on the second rolls back the first — no orphaned evidence rows.
+
+Attached evidence displays read-only on the View detail page (`app/views/[id]/page.tsx`), grouped by stance (For / Against / Context, with null-stance items in a trailing "Unspecified" group), each item showing its link and/or note. Still open: no edit UI for existing evidence, and no standalone evidence list (evidence is only reachable through its parent View).
 
 ## Database
 
