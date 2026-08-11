@@ -106,14 +106,16 @@ async function seedTopicAndViews(
   // it's linked to the view separately through view_evidence.
   const { data: evidence, error: evidenceError } = await user.client
     .from("evidence_items")
-    .insert({ user_id: user.id, note: "Some evidence", stance: "for" })
+    .insert({ user_id: user.id, note: "Some evidence" })
     .select()
     .single();
   if (evidenceError) throw evidenceError;
 
+  // stance now lives on the view_evidence link (ADR-006), not on the
+  // evidence_items row.
   const { data: viewEvidence, error: viewEvidenceError } = await user.client
     .from("view_evidence")
-    .insert({ view_id: view.id, evidence_id: evidence.id })
+    .insert({ view_id: view.id, evidence_id: evidence.id, stance: "for" })
     .select()
     .single();
   if (viewEvidenceError) throw viewEvidenceError;
@@ -286,7 +288,6 @@ describe("cross-tenant RLS boundaries", () => {
       .insert({
         user_id: userB.id,
         note: "Evidence attempting to forge ownership",
-        stance: "for",
       })
       .select();
 
@@ -568,6 +569,37 @@ describe("cross-tenant RLS boundaries", () => {
       .select("id")
       .eq("id", seedA.viewEvidenceId);
     expect(stillOwnedByA).toHaveLength(1);
+  });
+
+  // ADR-006: stance now lives on view_evidence (per-link). RLS is row-level,
+  // not column-level, so the same two-sided EXISTS policies that guard the
+  // row also guard stance — no stance-specific policy exists or is needed.
+  // Read side: the SELECT is filtered to empty for user B (proving the value,
+  // set to "for" in the seed, is hidden, not merely null). Update side: the
+  // UPDATE is a silent no-op (USING filters the row out), leaving user A's
+  // stance unchanged — same shape as the view_evidence UPDATE-block test above.
+  it("user B cannot read or update the stance column on user A's view_evidence row", async () => {
+    const readAsB = await userB.client
+      .from("view_evidence")
+      .select("stance")
+      .eq("id", seedA.viewEvidenceId);
+    expect(readAsB.error).toBeNull();
+    expect(readAsB.data).toEqual([]);
+
+    const { data, error } = await userB.client
+      .from("view_evidence")
+      .update({ stance: "against" })
+      .eq("id", seedA.viewEvidenceId)
+      .select();
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+
+    const { data: unchanged } = await userA.client
+      .from("view_evidence")
+      .select("stance")
+      .eq("id", seedA.viewEvidenceId)
+      .single();
+    expect(unchanged?.stance).toBe("for");
   });
 
   // Re-pointing forgery via UPDATE, same shape as the view_relationships
