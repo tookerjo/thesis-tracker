@@ -66,11 +66,18 @@ Also not yet tested: the Topics action-layer functions `createTopic` (`app/topic
 
 **Session 1.6c** — View-Topic linking UI. No UI currently exists to connect a View to a Topic, despite the `view_topics` join table and its two-sided RLS already existing (migration `20260729092144`). Topics detail already renders linked Views read-only, but nothing lets a user create or remove those links.
 
+Pre-work before the linking UI build starts:
+1. **Navigation audit** — click through the entire app as a first-time user and list every dead end or missing link in one pass. The nav-clipping/missing-links backlog item is a known starting point, not the full scope.
+2. **Topics action-layer tests** (`createTopic`, `updateTopic`) — carried from 1.6a; still untested.
+3. **`framing_note` display decision** — carried from 1.6a; captured on create/edit but not displayed, pending a product call on whether/how to surface it.
+4. **Manual two-Google-account cross-tenant check** on tonight's Evidence feature — deferred from 1.6b due to the production migration incident; verify one account can't see or attach the other's evidence through the real app.
+5. **Confirm production stays in sync going forward** — make "push migrations to production" an explicit step whenever a session includes schema changes, not just local testing. (This session's incident: three migrations, including a week-old one, had only been applied locally, which broke the deployed app.)
+
 **Backlog, no session assigned**
 - Dark-mode check (contrast, destructive buttons, validation messages, focus outlines, disabled submit-button state) across all touched pages, including whatever delete UI eventually ships.
 - `TableSkeleton` row-count jump — defaults to 6 rows regardless of real data volume, causing a visible shrink when real content is smaller (e.g. 3 real Views vs. 6 skeleton rows). Options identified: lower the default row count, or add a fade transition.
 - Slow `/views` page load — reported and reproduced; cause not yet identified. Duplicate port-3000 processes ruled out as the explanation.
-- Header content cut off at right edge of viewport — the Topics nav link (and possibly other header content) appears clipped at the right edge; observed on the View detail page, where the "Add evidence" link is also cut off. Needs investigation.
+- Navigation links missing or cut off — several nav/action links are either clipped at the right edge of the viewport or not rendered at all, despite their routes working. Observed: the Topics nav link (and possibly other header content) appears clipped at the right edge on the View detail page, where the "Add evidence" link is also cut off; and `/views` has no visible "New View" link even though `/views/new` is a fully working route. These look like one underlying issue (missing/clipped navigation affordances), not separate bugs. Needs investigation.
 - Views' `tags` column is set-invisible from the UI — the column exists in schema (migration `20260801161736`, ADR-003) and the View detail page displays it, but neither the create nor edit form has a field to set it, so it's effectively always null from the UI's perspective. A write path (form field + action wiring) was never built.
 
 **Still open, no session assigned** — Delete UI + confirmation dialog for Views and Topics. Was in Session 1.6's original polish scope; check `docs/session-specs/1.6-polish-tests.md`'s Definition of Done for current status before assuming it's done.
