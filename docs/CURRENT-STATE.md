@@ -72,6 +72,11 @@ Pre-work before the linking UI build starts:
 3. **`framing_note` display decision** — carried from 1.6a; captured on create/edit but not displayed, pending a product call on whether/how to surface it.
 4. **Manual two-Google-account cross-tenant check** on tonight's Evidence feature — deferred from 1.6b due to the production migration incident; verify one account can't see or attach the other's evidence through the real app.
 5. **Confirm production stays in sync going forward** — make "push migrations to production" an explicit step whenever a session includes schema changes, not just local testing. (This session's incident: three migrations, including a week-old one, had only been applied locally, which broke the deployed app.)
+6. **Security/data-safety fixes from Session 1.6b's review pass** — new migrations/code, not edits to the already-pushed files:
+   1. `create_view_evidence` RPC: add an explicit in-function ownership check on `p_view_id` (fail closed, don't rely solely on RLS) before inserting; and `revoke execute … from public`, keeping the grant to `authenticated` only.
+   2. Establish a standard pattern for future `DROP COLUMN` migrations: guard with a check that raises an exception if non-null data would be lost, or backfill explicitly. Applying it retroactively isn't required, but the pattern should exist before it's needed again.
+   3. `app/views/[id]/page.tsx`: stop collapsing all query errors into `notFound()` — distinguish "row doesn't exist / not owned" from "query failed," so a schema-drift bug can't disguise itself as a 404 again.
+   Reference: full findings in this session's scoped review pass (RPC + stance migration), to be summarized in `docs/debriefs.md` once written.
 
 **Backlog, no session assigned**
 - Dark-mode check (contrast, destructive buttons, validation messages, focus outlines, disabled submit-button state) across all touched pages, including whatever delete UI eventually ships.
