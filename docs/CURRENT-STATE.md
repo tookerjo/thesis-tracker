@@ -1,6 +1,6 @@
 # Current State
 
-Read this first, before scoping any new session. Verified directly against the filesystem/migrations at the time this was written (2026-08-05) — not from memory or from prior session summaries. If it looks stale, re-verify rather than trust it; update it once your session's changes land.
+Read this first, before scoping any new session. Verified directly against the filesystem/migrations at the time this was written (2026-08-11) — not from memory or from prior session summaries. If it looks stale, re-verify rather than trust it; update it once your session's changes land.
 
 ## Entities and pages
 
@@ -12,13 +12,17 @@ Read this first, before scoping any new session. Verified directly against the f
 - `loading.tsx` present for all four (list/detail/create/edit), using shared skeleton components
 - No delete UI. Backend delete is RLS-protected but unreachable from the app — no delete button/action exists anywhere under `app/views`.
 
-### Topics — list only
-- `app/topics/page.tsx` — list, with `loading.tsx`
-- No detail, create, or edit pages exist. Deferred to **Session 1.6a**.
+### Topics — full CRUD exists
+- `app/topics/page.tsx` — list; rows link to the detail page
+- `app/topics/[id]/page.tsx` — detail; has an Edit link to the edit page
+- `app/topics/new/page.tsx` + `new-topic-form.tsx` + `actions.ts` — create
+- `app/topics/[id]/edit/page.tsx` + `edit-topic-form.tsx` + `actions.ts` — edit
+- `loading.tsx` present for all four (list/detail/create/edit), using shared skeleton components
 - No delete UI (same gap as Views).
+- **Open product decision:** `framing_note` is captured on create and edit (bound in both forms, written to the DB by both `actions.ts` files) but intentionally not displayed on the detail page — the detail query doesn't even select it. This is a deliberate hold on an unresolved product question of whether/how to surface framing, not a bug. Still open.
 
 ### Shared UI components (`components/ui/`)
-`skeleton.tsx`, `table-skeleton.tsx`, `detail-skeleton.tsx`, `form-skeleton.tsx`, `empty-state.tsx`, `error-state.tsx`, `not-found-state.tsx` — used across the Views pages and the Topics list page. `app/not-found.tsx` (root) renders `NotFoundState` for the collapsed not-found/unauthorized case.
+`skeleton.tsx`, `table-skeleton.tsx`, `detail-skeleton.tsx`, `form-skeleton.tsx`, `empty-state.tsx`, `error-state.tsx`, `not-found-state.tsx` — used across the Views and Topics pages. `app/not-found.tsx` (root) renders `NotFoundState` for the collapsed not-found/unauthorized case.
 
 ### Evidence — schema only, no UI
 `evidence_items` and `view_evidence` tables exist (migration `20260801161736_reconcile_schema_with_prd.sql`), many-to-many with `views`, two-sided RLS on `view_evidence`. `stance` is currently a two-value CHECK (`for`/`against`). No app routes or forms exist for evidence anywhere. Deferred to **Session 1.6b**, including expanding `stance` to three values (`for`/`against`/`context`) and an open per-item-vs-per-link ADR decision on where `stance` should live — see `docs/design/1.4-schema-reconciliation.md`'s addendum.
@@ -46,11 +50,15 @@ Run with `npm run test` (vitest). Both files are configured via `.env.test.local
 
 Not yet tested: `view_evidence` / `view_relationships` tenancy scenarios beyond what's in `rls-tenancy.test.ts` already — no UI exists to exercise them through yet.
 
+Also not yet tested: the Topics action-layer functions `createTopic` (`app/topics/new/actions.ts`) and `updateTopic` (`app/topics/[id]/edit/actions.ts`) have zero test coverage as of end of Session 1.6a — no test file references either function. Same kind of gap as the `view_evidence`/`view_relationships` one above.
+
 ## Deferred work by session
 
-**Session 1.6a** — Topics detail/create/edit pages (full CRUD parity with Views), plus their polish (loading/error/empty states) and tenancy tests once those pages exist.
+**Session 1.6a** — ✅ Complete. Topics detail/create/edit pages built with full CRUD parity with Views, plus loading states; list rows link to detail and detail has an Edit link. (Gaps carried forward: `createTopic`/`updateTopic` still untested; `framing_note` captured but not displayed — see the Topics and Tests sections above.)
 
 **Session 1.6b** — Evidence CRUD UI (tables already exist). Must start with an ADR-level decision: does `stance` belong on `evidence_items` (per-item) or `view_evidence` (per-link)? Then implement the three-value `stance` expansion (`for`/`against`/`context`), which is a locked decision, not open.
+
+**Session 1.6c** — View-Topic linking UI. No UI currently exists to connect a View to a Topic, despite the `view_topics` join table and its two-sided RLS already existing (migration `20260729092144`). Topics detail already renders linked Views read-only, but nothing lets a user create or remove those links.
 
 **Backlog, no session assigned**
 - Dark-mode check (contrast, destructive buttons, validation messages, focus outlines, disabled submit-button state) across all touched pages, including whatever delete UI eventually ships.
