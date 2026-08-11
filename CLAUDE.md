@@ -29,6 +29,7 @@ ingestion or cross-source matching in this version.
 - ADR-003: [docs/adr/ADR-003-prd-schema-reconciliation.md](docs/adr/ADR-003-prd-schema-reconciliation.md)
 - ADR-004: [docs/adr/ADR-004-cascade-delete.md](docs/adr/ADR-004-cascade-delete.md)
 - ADR-005: [docs/adr/ADR-005-rls-policy-scoping.md](docs/adr/ADR-005-rls-policy-scoping.md)
+- ADR-006: [docs/adr/ADR-006-stance-per-link.md](docs/adr/ADR-006-stance-per-link.md)
 - (add as project evolves)
 
 ## Current Phase
