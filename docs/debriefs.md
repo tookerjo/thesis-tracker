@@ -469,3 +469,37 @@ Docker/Supabase and the dev server both destabilized after several hours of cont
 
 ## Next session
 Session 1.6b: Evidence CRUD UI. Opens with the stance placement decision (per-item vs per-link). Carries forward mandatory tasks: tests for Topics action layer (createTopic, updateTopic), and the framing_note display decision.
+
+## Session 1.6b: Evidence CRUD + Stance Architecture
+Date: 2026-08-11
+
+## What shipped
+Evidence CRUD (create/attach with per-link stance via atomic RPC, grouped display on View detail page), ADR-006 resolving the stance architecture decision, 8 commits total.
+
+## What broke
+Production briefly broke — every View detail page returned 404 for its own owner, because tonight's database migrations were built, tested, and verified entirely against local Supabase but never pushed to the production project before the matching app code auto-deployed via Vercel. Root cause found and fixed within the session; no data was lost (verified empty tables before applying the fix); cross-tenant protection re-verified on production after the fix via two real Google accounts.
+
+## Agent good
+Caught and fixed its own cleanup bug mid-execution (orphaned test rows) before reporting done rather than after; correctly declined to guess at production data risk and asked for a real read before proceeding; the end-of-session scoped review pass surfaced three specific, non-obvious gaps (RPC has no defense-in-depth ownership check, DROP COLUMN safety was untested-until-verified rather than guaranteed, page.tsx collapses real errors into a misleading 404) rather than offering reassurance.
+
+## Agent bad
+Claude.ai (not Claude Code) twice asserted or implied a state without verifying it first — once claiming evidence-display code was already committed when it wasn't, once skipping the "show me the diff before committing" instruction. Both caught by the user via direct git verification, not by the agent's own self-check.
+
+## Oversight catches I'm proud of
+1. Caught Claude.ai's own errors, not just Claude Code's — twice challenged Claude.ai directly (questioning whether the display code was really committed, and separately whether the "show diff before committing" instruction was actually followed) and was right both times on verification. Held the coordinating agent to the same standard as the executing one.
+2. Refused a hand-wavy explanation for a real gap — when the "New View" button turned out to be missing, didn't accept "log it, same as Topics" and instead named the pattern explicitly ("there are so many UI gaps"), which was the correct read: three real navigation gaps in one session, not noise.
+3. Held a scope line under pressure — explicitly said "I do not want to keep adding backlog" at the moment Claude.ai was about to add another open-ended item, correctly self-catching the exact failure mode (scope creep) already flagged as a known risk before this syllabus started.
+4. Returned to the session plan after a real derailment — after a two-hour production-incident detour, explicitly restated and executed the remaining plan ("finish #6, then #7, then #8, then close") rather than letting the session dissolve into reactive next-steps.
+
+## Oversight I missed
+_(left blank — to be filled in by the user)_
+
+## Reflection
+User's own words, verbatim:
+
+"I think one of my biggest takeaways is understanding UI and architecture security and testing. That's the job of the future, and it's about making sure you continue to refine and understand how to scope the outcome that you want. I think what I'm trying to figure out is knowing what I want to build up front, and that this coordination needs to be mitigated. I think that is really important. I need to figure out what is supposed to be manual and slow and what I should be automating. I think, especially in Project 2, we'll plan on using Plan Mode to streamline and draw some efficiencies, but there are some simple ways that I really could have caught and stopped some of this back and forth with the gaps. It's really in a clear, clean-up-and-build testing process when we push to production. Building a lot locally and then not seeing it in production might have hidden some of the security issues, but it might not, based on the fact that, seemingly, when Claude makes these assumptions with partial context, the dangerous part is when I don't know how and what to fill in with that context. That just might be a lesson from here on out. For user interface, I think I'm going to continue to focus on what that looks like and how to build tools for that, and then to use headless as well."
+
+Note: tonight surfaced that the coordinating role (deciding what's actually risky, refusing weak explanations, holding scope, catching overstated claims from either agent) is the actual skill under test — separate from and higher-leverage than the execution work being delegated. This session was a harder-than-usual test of that because it happened under live pressure (real production incident, over time budget) rather than in a clean walkthrough.
+
+## Next session
+1.6c — View-Topic linking UI. Opens with pre-work: navigation audit, Topics action-layer tests, framing_note display decision, production-sync process step, security/data-safety fixes from this session's review pass. (Manual cross-tenant check is now complete — remove from the pending list.)
