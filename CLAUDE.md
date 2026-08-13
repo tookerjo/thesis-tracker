@@ -33,9 +33,19 @@ ingestion or cross-source matching in this version.
 - (add as project evolves)
 
 ## Current Phase
-Session 1.3 complete — schema (topics, views, view_topics, view_relationships,
-evidence_items), RLS policies, GRANT/REVOKE on authenticated, and cross-tenant
-RLS tests all built and pushed to main. No CRUD routes built yet.
+Session 1.6c complete. See docs/CURRENT-STATE.md for the verified snapshot; in brief:
+- Full CRUD for both Views and Topics — list/detail/create/edit, each with loading
+  states (`app/views/` and `app/topics/`, plus their `new/` and `[id]/edit/` routes).
+- View-Topic linking is built: the View detail page owns link/unlink
+  (`app/views/[id]/actions.ts` + `app/views/[id]/topic-links.tsx`), Topic detail
+  (`app/topics/[id]/page.tsx`) lists linked Views read-only.
+- Evidence create/attach exists via the `create_view_evidence` RPC
+  (`app/views/[id]/evidence/new/`); no edit UI and no standalone evidence list yet.
+- Persistent nav shell (`components/site-nav.tsx`, rendered in `app/layout.tsx`) and a
+  root redirect (`app/page.tsx` → `/topics`).
+- `framing_note` displays read-only on Topic detail (`app/topics/[id]/page.tsx`).
+
+Next up: Session 1.7 — sign-out button, per syllabus_v3.md.
 
 ## Conventions
 - TypeScript strict mode on
