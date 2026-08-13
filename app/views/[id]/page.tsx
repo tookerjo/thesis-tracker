@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatFullDate } from "@/lib/format/full-date";
 import { STANCE_OPTIONS } from "@/lib/evidence/field-options";
+import { ErrorState } from "@/components/ui/error-state";
 
 type EvidenceLink = {
   id: string;
@@ -61,11 +62,15 @@ export default async function ViewDetailPage({
     .returns<ViewDetailRow[]>()
     .maybeSingle();
 
-  // error covers malformed ids (invalid uuid syntax); !view covers both
-  // "doesn't exist" and "belongs to another user" — RLS makes those two
-  // cases produce the identical zero-row result, so this branch can't
-  // distinguish them even if it wanted to.
-  if (error || !view) {
+  // A genuine query failure (bad SQL, schema drift, DB down) is NOT a 404 —
+  // collapsing it into notFound() is how a schema-drift bug once disguised
+  // itself as a missing view. Surface it as an error instead. Only a real
+  // zero-row result is a 404: !view covers both "doesn't exist" and "belongs
+  // to another user", which RLS makes indistinguishable here — both are a 404.
+  if (error) {
+    return <ErrorState message="Unable to load this view right now." />;
+  }
+  if (!view) {
     notFound();
   }
 

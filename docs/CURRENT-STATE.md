@@ -71,11 +71,6 @@ Pre-work before the linking UI build starts:
 2. **Topics action-layer tests** (`createTopic`, `updateTopic`) — carried from 1.6a; still untested.
 3. **`framing_note` display decision** — carried from 1.6a; captured on create/edit but not displayed, pending a product call on whether/how to surface it.
 4. **Confirm production stays in sync going forward** — make "push migrations to production" an explicit step whenever a session includes schema changes, not just local testing. (This session's incident: three migrations, including a week-old one, had only been applied locally, which broke the deployed app.)
-5. **Security/data-safety fixes from Session 1.6b's review pass** — new migrations/code, not edits to the already-pushed files:
-   1. `create_view_evidence` RPC: add an explicit in-function ownership check on `p_view_id` (fail closed, don't rely solely on RLS) before inserting; and `revoke execute … from public`, keeping the grant to `authenticated` only.
-   2. Establish a standard pattern for future `DROP COLUMN` migrations: guard with a check that raises an exception if non-null data would be lost, or backfill explicitly. Applying it retroactively isn't required, but the pattern should exist before it's needed again.
-   3. `app/views/[id]/page.tsx`: stop collapsing all query errors into `notFound()` — distinguish "row doesn't exist / not owned" from "query failed," so a schema-drift bug can't disguise itself as a 404 again.
-   Reference: full findings in this session's scoped review pass (RPC + stance migration), summarized in `docs/debriefs.md` (Session 1.6b entry).
 
 (The manual two-Google-account cross-tenant check on the Evidence feature, deferred from 1.6b during the production incident, has since been completed — one account confirmed unable to see or attach another's evidence — so it is no longer pending.)
 

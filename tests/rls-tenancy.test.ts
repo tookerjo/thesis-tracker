@@ -775,15 +775,17 @@ describe("cross-tenant RLS boundaries", () => {
     expect(link?.stance).toBe("context");
   });
 
-  // Atomicity + tenancy in one: user A calls create_view_evidence with user
-  // B's view_id. The evidence_items insert would pass RLS on its own (owned
-  // by A), but the view_evidence insert fails the two-sided WITH CHECK (A
-  // doesn't own B's view), aborting the whole transaction. The RPC must error
-  // AND leave no orphaned evidence_items row -- probed via a unique note
-  // marker so a stray orphan can't hide among A's other seeded evidence rows.
-  // The probe runs as user A: evidence_items is directly owned, so if an
-  // orphan (user_id = A, no link) existed, A could read it back -- an empty
-  // result therefore means the row was rolled back, not merely RLS-hidden.
+  // Tenancy: user A calls create_view_evidence with user B's view_id. As of
+  // migration 20260813103035, the RPC's explicit ownership guard
+  // (user_id = auth.uid()) rejects this up front and raises before either
+  // insert runs -- so no evidence_items row is ever created. (The two-sided
+  // view_evidence WITH CHECK remains as an independent backstop underneath.)
+  // Either way the observable contract is the same: the RPC must error AND
+  // leave no orphaned evidence_items row -- probed via a unique note marker so
+  // a stray orphan can't hide among A's other seeded evidence rows. The probe
+  // runs as user A: evidence_items is directly owned, so if an orphan
+  // (user_id = A, no link) existed, A could read it back -- an empty result
+  // therefore means the row was never committed, not merely RLS-hidden.
   it("create_view_evidence rolls back the evidence_items row when the view belongs to another user", async () => {
     const orphanMarker = `orphan-probe-${randomUUID()}`;
 

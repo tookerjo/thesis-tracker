@@ -503,3 +503,29 @@ Note: tonight surfaced that the coordinating role (deciding what's actually risk
 
 ## Next session
 1.6c — View-Topic linking UI. Opens with pre-work: navigation audit, Topics action-layer tests, framing_note display decision, production-sync process step, security/data-safety fixes from this session's review pass. (Manual cross-tenant check is now complete — remove from the pending list.)
+
+## Session 1.6c: Pre-work — security/data-safety fixes
+Date: 2026-08-13
+
+Scope note: this entry covers only the security/data-safety pre-work (item 5 of the 1.6c pre-work list) done ahead of the View-Topic linking UI. The linking UI itself and the other pre-work items (navigation audit, Topics action-layer tests, framing_note display decision, production-sync process step) are not part of this entry.
+
+## What shipped
+The three fixes from Session 1.6b's scoped review pass, all completed and verified:
+
+1. **RPC ownership check (defense-in-depth).** New migration `20260813103035_harden_create_view_evidence.sql` — `create or replace` on `create_view_evidence` adding an explicit ownership guard *before either insert*: `if not exists (select 1 from public.views where id = p_view_id and user_id = auth.uid()) then raise exception ... using errcode = 'insufficient_privilege'`. The guard checks `user_id = auth.uid()` directly rather than a bare `where id = p_view_id`, so it's an *independent* layer — under SECURITY INVOKER a bare check just re-runs RLS's own SELECT filter and would fail alongside it if the views policy were ever misconfigured. Same migration does `revoke execute … from public` (Postgres grants EXECUTE to PUBLIC by default; the original RPC migration only added a grant to `authenticated` and never revoked the implicit PUBLIC grant), keeping `authenticated` only.
+
+2. **DROP COLUMN guard pattern (reference doc).** `docs/design/drop-column-pattern.md` — a reusable `do $$ … raise exception … $$` guard-clause template that aborts a migration if the target column still holds non-null data, plus guidance on when to backfill-then-drop instead of block. Reference pattern only; **not applied to any existing column**. Establishes the pattern before it's next needed (the one shipped DROP COLUMN, `20260811151408`, was safe only because both tables were empty in production — a precondition that was verified, not guaranteed).
+
+3. **page.tsx error/not-found split.** `app/views/[id]/page.tsx` — a genuine query failure now renders `ErrorState`; only a real zero-row result calls `notFound()`. Previously both collapsed into `notFound()`, which is exactly how the 1.6b schema-drift bug disguised itself as a 404. Mirrors the pattern already used on the Views list page (`app/views/page.tsx`).
+
+## Verification
+- Migration applied cleanly to local Supabase, then pushed to the remote: `supabase db push` applied exactly `20260813103035`, and `supabase migration list` confirms it recorded on the remote (all ten migrations show local == remote — no drift). One non-blocking warning during push (`failed to cache migrations catalog`, an SSL-cert ENOENT inside the pgdelta edge-runtime); the apply succeeded regardless, confirmed by the migration list. CLI is a few versions behind (v2.109.1 vs v2.114.0), which may explain the warning.
+- Function ACL confirmed: `proacl = {postgres=X/postgres, authenticated=X/postgres}` — no PUBLIC EXECUTE.
+- Ownership guard exercised by the existing cross-tenant RPC test in `tests/rls-tenancy.test.ts` (user A calling with user B's view_id raises + leaves no orphan row); its explanatory comment was updated to describe the guard-first mechanism. Happy-path RPC test still green. Full suite: 37/37 passing.
+- Two pre-existing `tsc --noEmit` errors in `tests/rls-tenancy.test.ts` (lines 42/49, `SUPABASE_URL` typed `string | undefined` because TS doesn't narrow across the import-time throw guard) confirmed to predate this session; `app/views/[id]/page.tsx` compiles clean.
+
+## Agent good
+Caught a genuine independence gap in its own plan when challenged — the first draft guarded with a bare `where id = p_view_id`, which under SECURITY INVOKER just re-runs RLS and fails alongside it; corrected to `user_id = auth.uid()` so the guard is a real second layer. Also flagged, without being asked, that the Topics detail page has the identical error-collapsing bug as item 3 (scoped it out rather than silently expanding), and declined to recommend a broad `docker exec … psql` auto-approve rule on the grounds that prefix matching can't distinguish a read-only SELECT from a destructive statement.
+
+## Next session
+1.6c proper — View-Topic linking UI, plus the remaining pre-work items (navigation audit, Topics action-layer tests, framing_note display decision, production-sync process step).
