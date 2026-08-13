@@ -555,3 +555,25 @@ Task 6 — Built the nav shell and the View-Topic linking UI in one pass. Expand
 **Process reflection:** Manual click-through and line-by-line diff review started to feel redundant in that order, on lower-stakes work. If I click through and it works, then reread every line and find nothing new, I've done the same check twice. Going forward: click-through first for UI work, full line-by-line before approval reserved for anything touching auth, security, or data I can't get back. That's the actual split that happened today between Task 1 and Task 6, and it held up.
 
 **Next session:** 1.7 — sign-out button, per syllabus_v3.md. Back on the original session sequence after this session absorbed the carried 1.6b/1.6a pre-work and the linking UI build.
+
+## Session 1.7: Sign-out button + Deploy + light red-team
+
+Date: August 13, 2026 | Session: 1.7 | Name: Sign-out button + Deploy + light red-team
+
+**What shipped:** A working sign-out button in the nav shell. Server action, default global scope, revokes the refresh token server-side and redirects to /login. Verified locally and in production. Deploy confirmed on commit 4bc17a6. Ran 3 red-team attacks against the live app. All 3 passed.
+
+**What broke / was confusing:** Nothing broke in the build itself. The manual testing got confusing fast once I started switching between two accounts in the same browser tab. I hit a stale /login?next=%2Fviews redirect that looked like a bug but was probably just session flakiness from rapid account switching. Incognito for the second account fixed that. I also didn't realize a prerequisite step (creating a throwaway View on the second account) hadn't happened before we tried the forged-request attack. That cost some back-and-forth.
+
+**Agent did well:** Explored before building instead of guessing. Verified Supabase's sign-out behavior against the actual docs instead of answering from memory, including the global vs local scope distinction and the access-token caveat. Flagged what it couldn't verify itself (browser behavior, Vercel deploy status) instead of asserting it worked. Wrote the redirect-outside-try/catch logic correctly on the first pass, which was the exact failure mode I was warned to watch for.
+
+**Agent did badly:** Suggested pushing doc updates and the debrief to "next session" after commit, which goes against the standing rule that CURRENT-STATE.md gets updated every session. Also offered to skip the sign-out unit test on the reasoning that it was "mostly testing the mock" — technically true, but not a good enough reason to skip an auth-path test given CLAUDE.md's explicit rule.
+
+**Oversight catch I'm proud of:** Catching that the sign-in landing page was /dashboard, a route nobody had documented anywhere. Wasn't part of today's scope, but I flagged it instead of letting it slide, and it went straight to backlog instead of getting chased mid-session.
+
+**Oversight I missed (caught in review):** I didn't think to ask whether signOut() handles its own failure case. Claude Code's review pass caught it: if the Supabase logout call itself errors, the code redirects to /login anyway without checking. Minor gap, not a real bypass, but I wouldn't have thought to ask that question myself.
+
+**Did any of the 3 attacks succeed?** No. All 3 passed: cross-tenant View access blocked, stale session after sign-out redirected correctly, and the forged viewId on the evidence RPC was rejected outright.
+
+**Does the RPC design feel solid, or did the attack reveal something the code review didn't catch?** It feels solid. The 1.6c ownership guard did exactly what it was built to do under a live forged request, not just in a code review. That's a stronger signal than the review pass alone gave me at the time.
+
+**Next session:** 1.8 — Debrief + retrospective. HOT 8hr session: Skills (Claude Code) + Codex Entry 1, comparative re-implementation on a disposable branch.

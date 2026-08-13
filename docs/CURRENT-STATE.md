@@ -6,6 +6,7 @@ Read this first, before scoping any new session. Verified directly against the f
 
 - Root `/` (`app/page.tsx`) redirects to `/topics` (middleware then gates unauthenticated users to `/login`).
 - Persistent top nav (`components/site-nav.tsx`, a client component rendered in `app/layout.tsx`) links **Topics** and **Views** on every authenticated page, highlights the active section via `usePathname()`, and wraps rather than clips on narrow viewports. It hides itself on the public/auth routes (`/login`, `/dev-login`, `/auth/*`).
+- The nav also has an always-visible **Sign out** button (right-aligned): a `<form action={signOut}>` calling the `signOut()` server action in `app/actions.ts`, which signs out at the supabase-js default global scope (revokes the refresh token server-side + clears auth cookies) and redirects to `/login`.
 - Both list pages have a create affordance: **New View** / **New Topic** header links, plus a CTA on the Topics empty state so creation is reachable even with zero topics.
 
 ## Entities and pages
@@ -61,12 +62,13 @@ Migrations in `supabase/migrations/`, in order (all applied locally and confirme
 
 ## Tests
 
-49 tests total, across four files, all passing. Run with `npm run test` (vitest). All point at local Supabase via `.env.test.local`'s `SUPABASE_TEST_*` vars; each file throws at import time if `SUPABASE_TEST_URL` isn't `127.0.0.1`/`localhost` (an explicit per-file guard). `vitest.config.ts` defines an `@/` alias so tests can import app modules and mock `@/lib/supabase/server`.
+50 tests total, across five files, all passing. Run with `npm run test` (vitest). The four DB-touching files point at local Supabase via `.env.test.local`'s `SUPABASE_TEST_*` vars, each throwing at import time if `SUPABASE_TEST_URL` isn't `127.0.0.1`/`localhost` (an explicit per-file guard); the sign-out unit test mocks everything and touches no real Supabase. `vitest.config.ts` defines an `@/` alias so tests can import app modules and mock `@/lib/supabase/server`.
 
 - `tests/rls-tenancy.test.ts` — 35 tests. DB-layer cross-tenant RLS boundaries (read/insert/update/delete blocking, ownership forgery, cascade-delete, stance-column isolation) across `topics`, `views`, `view_topics`, `view_relationships`, `evidence_items`, `view_evidence`, plus the `create_view_evidence` RPC happy-path and cross-tenant rollback.
 - `tests/middleware-auth.test.ts` — 2 tests. Unit-tests `lib/supabase/middleware.ts`'s `updateSession()` redirect-to-`/login` gate for unauthenticated `/views` and `/topics`.
 - `tests/topics-actions.test.ts` — 7 tests. App-layer `createTopic` / `updateTopic`: success, `framing_note` write path (value + null-on-whitespace), validation, and cross-tenant update rejection. Mocks `@/lib/supabase/server` to inject a real authed client so the real action runs against local Supabase.
 - `tests/view-topics-actions.test.ts` — 5 tests. App-layer `linkTopic` / `unlinkTopic`: success, cross-tenant rejection both directions, and a forced double-link proving the unique-constraint handler (not just the UI) catches duplicates.
+- `tests/sign-out-action.test.ts` — 1 test. Pure unit test: mocks `@/lib/supabase/server` and `next/navigation`, asserting `signOut()` calls the client's `auth.signOut()` with no args (default global scope) and redirects to `/login`.
 
 Seed user for dev-login: `dev@thesis-tracker.local` (`scripts/seed-dev-user.mjs`).
 
@@ -80,6 +82,7 @@ Not yet app-tested: the **View** create/edit action functions (`app/views/new/ac
 - **Slow `/views` page load** — reported and reproduced; cause not yet identified. Duplicate port-3000 processes ruled out as the explanation.
 - **Dark-mode check** (contrast, destructive buttons, validation messages, focus outlines, disabled submit-button state) across all touched pages, including whatever delete UI eventually ships.
 - **`TableSkeleton` row-count jump** — defaults to 6 rows regardless of real data volume, causing a visible shrink when real content is smaller. Options: lower the default, or add a fade transition.
+- **`/dashboard` route** — the OAuth sign-in landing page (`app/dashboard/`), undocumented and not yet investigated. Surfaced during Session 1.7 red-team testing; needs a look at what it is and whether it should exist.
 
 ## Where to look for more detail
 
