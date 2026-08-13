@@ -529,3 +529,29 @@ Caught a genuine independence gap in its own plan when challenged — the first 
 
 ## Next session
 1.6c proper — View-Topic linking UI, plus the remaining pre-work items (navigation audit, Topics action-layer tests, framing_note display decision, production-sync process step).
+
+## Session 1.6c (cont'd): Nav shell, framing_note, View-Topic linking
+
+Date: 2026-08-13
+
+This covers Tasks 3 through 6 of today's session. Task 1 (security fixes) has its own entry above.
+
+**What shipped:**
+
+Task 3 — DROP COLUMN guard pattern doc. Reference-only, not applied to any column yet. docs/design/drop-column-pattern.md.
+
+Task 4 — Topics action-layer tests. createTopic and updateTopic had zero coverage before this. Added the vitest @/ alias as a prerequisite so the mock could target the right import path. 44/44 passing.
+
+Task 5 — Navigation audit turned into the biggest finding of the session. The app had no home page, no persistent nav, and no way to move between Topics and Views except typing URLs. Bigger than I expected going in. Also decided the framing_note question: display it read-only on Topic detail.
+
+Task 6 — Built the nav shell and the View-Topic linking UI in one pass. Expanded scope mid-task to add "New Topic" and "New View" links on the list pages, since the nav audit surfaced that gap and I didn't want to carry it into a fourth session. View detail owns linking; Topic detail stays read-only. Justified by domain fit — a View is the specific bet, a Topic is the bucket you file it under — and it matches how evidence-linking already works. 49/49 tests passing, production build clean. I did the full manual click-through myself, including add, remove, and re-add. Declined the Claude-in-Chrome extension for automated verification.
+
+**Agent good:** Plan Mode was the right call today. Getting the full plan up front and then letting Claude Code execute without stopping me at every file was a real speed-up over the manual per-step approval I was doing earlier in this project. The plan itself caught a real problem before any code existed — the ownership check in the RPC was quietly re-running RLS instead of being an independent layer, and that got fixed in the plan, not after the fact. Claude Code also told me straight when it did something outside its lane, killing that process on port 3000, instead of staying quiet about it.
+
+**Agent bad:** Claude Code killed a process on port 3000 while cleaning up its dev server, without checking what it was first. It wasn't something Claude Code started. It told me afterward instead of asking beforehand. Nothing was lost this time, but that's the kind of unrequested action I want flagged before it happens, not after.
+
+**Oversight I missed:** Nothing sticks out this session. I caught the redundant review-order issue myself, in real time, and the ownership-guard gap in the RPC plan was caught before any code got written. Nothing slipped past me that I noticed later.
+
+**Process reflection:** Manual click-through and line-by-line diff review started to feel redundant in that order, on lower-stakes work. If I click through and it works, then reread every line and find nothing new, I've done the same check twice. Going forward: click-through first for UI work, full line-by-line before approval reserved for anything touching auth, security, or data I can't get back. That's the actual split that happened today between Task 1 and Task 6, and it held up.
+
+**Next session:** 1.7 — sign-out button, per syllabus_v3.md. Back on the original session sequence after this session absorbed the carried 1.6b/1.6a pre-work and the linking UI build.
