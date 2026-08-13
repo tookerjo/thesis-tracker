@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "@/app/actions";
 
 const NAV_ITEMS = [
   { href: "/topics", label: "Topics" },
@@ -38,6 +39,14 @@ export function SiteNav() {
           </Link>
         );
       })}
+      <form action={signOut} className="ml-auto">
+        <button
+          type="submit"
+          className="text-sm text-neutral-500 hover:underline"
+        >
+          Sign out
+        </button>
+      </form>
     </nav>
   );
 }
