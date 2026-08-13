@@ -4,12 +4,15 @@ import { createClient } from "@/lib/supabase/server";
 import { formatFullDate } from "@/lib/format/full-date";
 import { STANCE_OPTIONS } from "@/lib/evidence/field-options";
 import { ErrorState } from "@/components/ui/error-state";
+import { TopicLinks } from "./topic-links";
 
 type EvidenceLink = {
   id: string;
   stance: string | null;
   evidence_items: { id: string; link: string | null; note: string | null } | null;
 };
+
+type TopicRef = { id: string; name: string };
 
 type ViewDetailRow = {
   id: string;
@@ -20,6 +23,7 @@ type ViewDetailRow = {
   created_at: string;
   updated_at: string;
   view_evidence: EvidenceLink[];
+  view_topics: { topics: TopicRef | null }[];
 };
 
 type EvidenceItem = {
@@ -56,7 +60,7 @@ export default async function ViewDetailPage({
   const { data: view, error } = await supabase
     .from("views")
     .select(
-      "id, title, confidence_level, time_horizon, tags, created_at, updated_at, view_evidence(id, stance, evidence_items(id, link, note))",
+      "id, title, confidence_level, time_horizon, tags, created_at, updated_at, view_evidence(id, stance, evidence_items(id, link, note)), view_topics(topics(id, name))",
     )
     .eq("id", id)
     .returns<ViewDetailRow[]>()
@@ -73,6 +77,24 @@ export default async function ViewDetailPage({
   if (!view) {
     notFound();
   }
+
+  // Topics linked to this view (flattened from the join rows), and the user's
+  // other topics not yet linked -- the latter feeds the "link a topic" dropdown.
+  // RLS scopes the topics query to the user, so availableTopics can only ever
+  // contain the user's own topics.
+  const linkedTopics: TopicRef[] = view.view_topics
+    .map((entry) => entry.topics)
+    .filter((topic): topic is TopicRef => topic !== null);
+  const linkedTopicIds = new Set(linkedTopics.map((topic) => topic.id));
+
+  const { data: allTopics } = await supabase
+    .from("topics")
+    .select("id, name")
+    .order("name", { ascending: true })
+    .returns<TopicRef[]>();
+  const availableTopics = (allTopics ?? []).filter(
+    (topic) => !linkedTopicIds.has(topic.id),
+  );
 
   // Flatten the join rows to the evidence itself, carrying stance down from
   // the view_evidence link (ADR-006: stance is per-link, not per-item). The
@@ -132,6 +154,14 @@ export default async function ViewDetailPage({
         <dt className="text-sm text-neutral-500">Updated</dt>
         <dd>{formatFullDate(view.updated_at)}</dd>
       </dl>
+      <div className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium text-neutral-500">Topics</h2>
+        <TopicLinks
+          viewId={view.id}
+          linkedTopics={linkedTopics}
+          availableTopics={availableTopics}
+        />
+      </div>
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium text-neutral-500">Evidence</h2>

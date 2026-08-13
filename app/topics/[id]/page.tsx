@@ -6,6 +6,7 @@ import { formatFullDate } from "@/lib/format/full-date";
 type TopicDetailRow = {
   id: string;
   name: string;
+  framing_note: string | null;
   created_at: string;
   updated_at: string;
   view_topics: { views: { id: string; title: string } | null }[];
@@ -28,7 +29,9 @@ export default async function TopicDetailPage({
 
   const { data: topic, error } = await supabase
     .from("topics")
-    .select("id, name, created_at, updated_at, view_topics(views(id, title))")
+    .select(
+      "id, name, framing_note, created_at, updated_at, view_topics(views(id, title))",
+    )
     .eq("id", id)
     .returns<TopicDetailRow[]>()
     .maybeSingle();
@@ -60,6 +63,12 @@ export default async function TopicDetailPage({
         </Link>
       </div>
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2">
+        <dt className="text-sm text-neutral-500">Framing note</dt>
+        {topic.framing_note ? (
+          <dd className="whitespace-pre-wrap">{topic.framing_note}</dd>
+        ) : (
+          <dd className="text-neutral-500">None</dd>
+        )}
         <dt className="text-sm text-neutral-500">Created</dt>
         <dd>{formatFullDate(topic.created_at)}</dd>
         <dt className="text-sm text-neutral-500">Updated</dt>

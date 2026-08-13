@@ -32,12 +32,22 @@ export default async function TopicsPage() {
   }
 
   if (topics.length === 0) {
-    return <EmptyState message="No topics yet" />;
+    return (
+      <EmptyState
+        message="No topics yet"
+        cta={{ href: "/topics/new", label: "Create your first Topic" }}
+      />
+    );
   }
 
   return (
     <main className="flex min-h-screen flex-col gap-6 p-8">
-      <h1 className="text-2xl font-semibold">Topics</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Topics</h1>
+        <Link href="/topics/new" className="text-sm text-neutral-500 hover:underline">
+          New Topic
+        </Link>
+      </div>
       <table className="w-full text-left">
         <thead>
           <tr className="border-b border-neutral-200 text-sm text-neutral-500">
