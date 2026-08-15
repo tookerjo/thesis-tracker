@@ -2,6 +2,11 @@
 
 Read this first, before scoping any new session. Verified directly against the filesystem/migrations/tests at the time this was written (2026-08-13) — not from memory or from prior session summaries. If it looks stale, re-verify rather than trust it; update it once your session's changes land.
 
+## Carry-forward notes (session-to-session)
+
+1. **Writing-voice setup deferred to Session 2.1.** Josh flagged that Claude Code's narrative output (debriefs, docs) doesn't match his actual voice — needs either a CLAUDE.md addition with real writing samples, or a dedicated writing-voice Skill, set up before or at the start of Session 2.1.
+2. **Syllabus scope confirmation required before Session 2.1 build work starts.** Josh intends to adjust the syllabus for Projects 2 and 3. Before any 2.1 planning or PRD work begins, confirm the current `syllabus_v3.md` and overall Project 2/3 scope with Josh directly — do not assume the existing syllabus document reflects his current intent.
+
 ## App shell and navigation
 
 - Root `/` (`app/page.tsx`) redirects to `/topics` (middleware then gates unauthenticated users to `/login`).
