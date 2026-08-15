@@ -82,7 +82,7 @@ Not yet app-tested: the **View** create/edit action functions (`app/views/new/ac
 - **Slow `/views` page load** — reported and reproduced; cause not yet identified. Duplicate port-3000 processes ruled out as the explanation.
 - **Dark-mode check** (contrast, destructive buttons, validation messages, focus outlines, disabled submit-button state) across all touched pages, including whatever delete UI eventually ships.
 - **`TableSkeleton` row-count jump** — defaults to 6 rows regardless of real data volume, causing a visible shrink when real content is smaller. Options: lower the default, or add a fade transition.
-- **`/dashboard` route** — the OAuth sign-in landing page (`app/dashboard/`), undocumented and not yet investigated. Surfaced during Session 1.7 red-team testing; needs a look at what it is and whether it should exist.
+- **`/dashboard` route** — confirmed to be the post-Google-OAuth landing page: after sign-in, users land on `/dashboard`, not `/topics`, even though root `/` correctly redirects to `/topics` on its own. `app/dashboard/` itself is otherwise undocumented and still not investigated — no behavior changed. Surfaced during Session 1.7 red-team testing; needs a look at what it is and whether it should exist.
 
 ## Where to look for more detail
 
